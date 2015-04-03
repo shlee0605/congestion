@@ -19,3 +19,11 @@ but it seems it actually returns 0
 because read() is causing EAGAIN for some reason.
 So our rel_read() adjusts to this observation
 instead of following the instructions.
+
+## About Cmake
+
+[Cmake](http://www.cmake.org) is a meta-build tool
+that can generate makefiles, Xcode projects,
+Visual Studio projects, Eclipse projects, etc.
+It is an ideal tool for a team
+where members use different IDEs.
