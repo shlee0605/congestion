@@ -295,7 +295,11 @@ int connect_to (int dgram, const struct sockaddr_storage *ss);
 #include <sys/time.h>
 
 #ifndef CLOCK_REALTIME
+#ifdef __linux__
 # define NEED_CLOCK_GETTIME 1
+#else
+# define NEED_CLOCK_GETTIME 0
+#endif
 # define CLOCK_REALTIME 0
 # undef CLOCK_MONOTONIC
 # define CLOCK_MONOTONIC 1
