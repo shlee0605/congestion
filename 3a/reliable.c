@@ -19,6 +19,8 @@
 #define HEADER_SIZE 12
 #define PAYLOAD_SIZE 500
 
+void set_network_bytes_and_checksum(packet_t* pkt); 
+
 struct reliable_state {
   rel_t *next;			/* Linked list for traversing all connections */
   rel_t **prev;
@@ -108,7 +110,7 @@ rel_read (rel_t *s)
   
   // call conn_input to get the data to send in the packets
   int bytes_read = conn_input(s->c, pkt->data, PAYLOAD_SIZE);
-  
+  fprintf(stderr, "%d\n", bytes_read); 
   // no data is available
   if(bytes_read == 0) {
     free(pkt);
@@ -128,9 +130,11 @@ rel_read (rel_t *s)
   pkt->cksum = 0;
   pkt->ackno = 0;
   pkt->seqno = 0;
-
+  
   // send packet to sliding window queue
-  print_pkt (pkt, "send", pkt->len);
+  int pkt_length = (int)pkt->len;
+  set_network_bytes_and_checksum(pkt); 
+  print_pkt (pkt, "send", pkt_length);
   conn_sendpkt(s->c, pkt, pkt->len);
   //free(pkt);
 }
@@ -145,4 +149,12 @@ rel_timer ()
 {
   /* Retransmit any packets that need to be retransmitted */
 
+}
+
+void set_network_bytes_and_checksum(packet_t* pkt) {
+  int packet_length = (int)pkt->len;
+  pkt->len = htons(pkt->len);
+  pkt->ackno = htonl(pkt->ackno);
+  pkt->seqno = htonl(pkt->seqno);
+  pkt->cksum = cksum(pkt, packet_length);
 }
