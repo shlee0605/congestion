@@ -92,6 +92,7 @@ rel_demux (const struct config_common *cc,
 void
 rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
+  print_pkt (pkt, "recv", n);
 }
 
 
@@ -101,36 +102,46 @@ rel_read (rel_t *s)
   // packet sizes are 500 bytes
   int len = 500 * (s->cc->window);
   char buf[len];
-  int bytesTotal = 0;
+  int bytes_total = 0;
 
   // call conn_input to get the data to send in the packets
   while(1) {
-    int bytesRead = conn_input(s->c, buf, len);
+    int bytes_read = conn_input(s->c, buf, len);
     // no data is available
-    if(bytesRead == -1) {
+    if(bytes_read == -1) {
       // According to the instructions, conn_input() should return 0
       // when no data is available, but it seems it actually returns -1
       // because read() is causing EAGAIN for some reason.
       return;
     }
     // EOF is received
-    if(bytesRead == 0) {
+    if(bytes_read == 0) {
       // According to the instructions, conn_input() should return -1
       // when EOF is met, but it seems it actually returns 0
       // because read() is causing EAGAIN for some reason.
       break;
     }
-    bytesTotal += bytesRead;
+    bytes_total += bytes_read;
   }
-  
-  fprintf(stderr, "%s", buf);
+  // buf[bytes_total] = 0;
+  // fprintf(stderr, "%s", buf);
 
   // create a packet with the data
-  //packet_t pkt;
-  // pkt.cksum, len, ackno, seqno
+  packet_t pkt;
+  memcpy(pkt.data, buf, 500);
+  pkt.cksum = 0;
+  if(bytes_total > 500) {
+    pkt.len = 12 + 500;
+  } else {
+    pkt.len = 12 + bytes_total;
+  }
+  pkt.ackno = 0;
+  pkt.seqno = 0;
   
-  // send packet to receiver using conn_sendpkt (conn_t *c, const packet_t *pkt, size_t len)
-  //conn_sendpkt(s.c, pkt, pkt.len)
+  // send packet to receiver using conn_sendpkt
+  print_pkt (&pkt, "send", pkt.len);
+  conn_sendpkt(s->c, &pkt, pkt.len);
+
 }
 
 void
