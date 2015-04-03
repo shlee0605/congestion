@@ -6,6 +6,8 @@
 // http://www.sanfoundry.com/c-program-queue-using-linked-list/
 
 int packet_queue_count = 0;
+packet_t* sliding_window[128];
+int sws_head = 0, sws_tail = 5;
 
 struct packet_node {
     packet_t *info;
@@ -53,12 +55,29 @@ void enqueue_packet(packet_t *p_packet) {
     packet_queue_count++;
 }
 
+void fill_window() {
+	for(int i = sws_head; i < sws_tail; i++) {
+		if(sliding_window[i] == NULL) {
+			packet_t* p_next_packet_to_send = dequeue_packet();
+			sliding_window[i] = p_next_packet_to_send;
+			return;
+		}
+	}
+}
+
+void show_window(packet_t *buffer, int len) {
+	for(int i = 0; i < len; i++) {
+		buffer[i] = sliding_window[i + sws_head];
+	}
+}
 
 void run_sw_periodic_helper() {
+	memset(sliding_window, NULL, 0);
     while (1) {
-        if (1) { // check if there's an empty slot in the sender window
-            packet_t* p_next_packet_to_send = dequeue_packet();
+        if () { // check if there's an empty slot in the sender window
+            
             // and send
+
         }
     }
 }
