@@ -10,4 +10,8 @@ packet_t *dequeue_packet();
 /// as soon as possible.
 void enqueue_packet(packet_t *p_packet);
 
+void fill_window();
+
+void show_window();
+
 #endif //_CONGESTION_SLIDING_WINDOW_H_
