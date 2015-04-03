@@ -15,7 +15,7 @@ void queue_tests() {
     enqueue_packet(&p1);
     assert(dequeue_packet() == &p1); // make sure pointer is left intact
     assert(p1.seqno == 1); // make sure content of packet doesn't change
-    assert(dequeue_packet() == NULL); // make sure queue is empty again
+    assert(dequeue_packet() == NULL); // make sure queue is empty againt
 
     enqueue_packet(&p1);
     enqueue_packet(&p2);
