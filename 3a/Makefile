@@ -11,7 +11,16 @@
 #DMALLOC_CFLAGS = -I/afs/ir/class/cs144/dmalloc -DDMALLOC=1
 #DMALLOC_LIBS = -L/afs/ir/class/cs144/dmalloc -ldmalloc
 
-LIBRT = -lrt
+ifeq ($(OS),Windows_NT)
+	LIBRT =
+else
+	UNAME := $(shell uname)
+	ifeq ($(UNAME),Linux)
+		LIBRT = -lrt
+	else
+		LIBRT =
+	endif
+endif
 
 CC = gcc
 CFLAGS = -g -Wall $(DMALLOC_CFLAGS)
