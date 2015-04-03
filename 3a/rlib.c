@@ -483,7 +483,9 @@ need_timer_in (const struct timespec *last, long timer)
   long to;
   struct timespec ts;
 
+#if NEED_CLOCK_GETTIME
   clock_gettime (CLOCK_MONOTONIC, &ts);
+#endif
   to = ts.tv_sec - last->tv_sec;
   if (to > timer / 1000)
     return 0;
@@ -565,7 +567,9 @@ conn_poll (const struct config_common *cc)
 
   if (need_timer_in (&last_timeout, cc->timer) == 0) {
     rel_timer ();
+#if NEED_CLOCK_GETTIME
     clock_gettime (CLOCK_MONOTONIC, &last_timeout);
+#endif
   }
 
   for (c = conn_list; c; c = nc) {
