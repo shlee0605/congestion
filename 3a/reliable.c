@@ -29,6 +29,7 @@ struct reliable_state {
 
   /* Add your own data fields below this */
   const struct config_common *cc;
+  int read_eof; /* 1 - received eof, 0 - not received eof */
 };
 rel_t *rel_list;
 
@@ -63,6 +64,7 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
 
   /* Do any other initialization you need here */
   r->cc = cc;
+  r->read_eof = 0;
   return r;
 }
 
@@ -103,40 +105,47 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 void
 rel_read (rel_t *s)
 {
+  char buf[PAYLOAD_SIZE];
   //initialize a packet
-  packet_t *pkt;
-  pkt = xmalloc(sizeof(pkt));
-  memset(pkt->data, 0, PAYLOAD_SIZE);
-  
-  // call conn_input to get the data to send in the packets
-  int bytes_read = conn_input(s->c, pkt->data, PAYLOAD_SIZE);
-  fprintf(stderr, "%d\n", bytes_read); 
-  // no data is available
-  if(bytes_read == 0) {
-    free(pkt);
-    // According to the instructions, conn_input() should return 0
-    // when no data is available, but it seems it actually returns -1
-    // because read() is causing EAGAIN for some reason.
-    return;
-  }
-  
-  if(bytes_read == -1) {
-    pkt->len = HEADER_SIZE;
-  }
-  else {
-    pkt->len = HEADER_SIZE + bytes_read;
-  }
+  while(1) {
       
-  pkt->cksum = 0;
-  pkt->ackno = 0;
-  pkt->seqno = 0;
-  
-  // send packet to sliding window queue
-  int pkt_length = (int)pkt->len;
-  set_network_bytes_and_checksum(pkt); 
-  print_pkt (pkt, "send", pkt_length);
-  conn_sendpkt(s->c, pkt, pkt->len);
-  //free(pkt);
+    // call conn_input to get the data to send in the packets
+    int bytes_read = conn_input(s->c, buf, PAYLOAD_SIZE);
+    fprintf(stderr, "%d\n", bytes_read); 
+    
+    // no data is available
+    if(bytes_read == 0 || (bytes_read == -1 && s->read_eof == 1)) {
+      // According to the instructions, conn_input() should return 0
+      // when no data is available, but it seems it actually returns -1
+      // because read() is causing EAGAIN for some reason.
+      return;
+    }
+
+    packet_t *pkt = (packet_t*)malloc(sizeof(packet_t));
+    int pkt_len = HEADER_SIZE;
+
+    if(bytes_read == -1) {
+      s->read_eof = 1;
+      pkt_len = HEADER_SIZE;
+    }
+    else if(bytes_read > 0) {
+      pkt_len = HEADER_SIZE + bytes_read;
+      memset(pkt->data, 0, 500);        
+      memcpy(pkt->data, buf, 500);
+    }  
+
+    pkt->cksum = 0;
+    pkt->ackno = 0;
+    pkt->seqno = 0;
+    pkt->len = pkt_len;
+
+    // send packet to sliding window queue
+    set_network_bytes_and_checksum(pkt); 
+    print_pkt (pkt, "send", pkt_len);
+    conn_sendpkt(s->c, pkt, pkt_len);
+
+    // packet needs to be freed after getting acknowledgement
+  }
 }
 
 void
@@ -156,5 +165,5 @@ void set_network_bytes_and_checksum(packet_t* pkt) {
   pkt->len = htons(pkt->len);
   pkt->ackno = htonl(pkt->ackno);
   pkt->seqno = htonl(pkt->seqno);
-  pkt->cksum = cksum(pkt, packet_length);
+  pkt->cksum = cksum((void*)pkt, packet_length);
 }
