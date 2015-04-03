@@ -24,12 +24,9 @@ struct reliable_state {
   conn_t *c;			/* This is the connection object */
 
   /* Add your own data fields below this */
-
+  const struct config_common *cc;
 };
 rel_t *rel_list;
-
-
-
 
 
 /* Creates a new reliable protocol session, returns NULL on failure.
@@ -61,8 +58,7 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
   rel_list = r;
 
   /* Do any other initialization you need here */
-
-
+  r->cc = cc;
   return r;
 }
 
@@ -102,6 +98,35 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 void
 rel_read (rel_t *s)
 {
+  // packet sizes are 500 bytes
+  int len = 500 * (s->cc->window);
+  char buf[len];
+  int bytesTotal = 0;
+
+  fprintf(stderr, "%d\n", len);
+
+  // call conn_input to get the data to send in the packets
+  while(1) {
+    int bytesRead = conn_input(s->c, buf, len);
+    // no data is available
+    if(bytesRead == 0) {
+      return;
+    }
+    // EOF is received
+    if(bytesRead == -1) {
+      break;
+    }
+    bytesTotal += bytesRead;
+  }
+  
+  fprintf(stderr, "%s\n", buf);
+
+  // create a packet with the data
+  //packet_t pkt;
+  // pkt.cksum, len, ackno, seqno
+  
+  // send packet to receiver using conn_sendpkt (conn_t *c, const packet_t *pkt, size_t len)
+  //conn_sendpkt(s.c, pkt, pkt.len)
 }
 
 void
