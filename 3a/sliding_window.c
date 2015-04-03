@@ -55,3 +55,13 @@ void enqueue_packet(packet_t *p_packet) {
     }
     packet_queue_count++;
 }
+
+
+void run_sw_periodic_helper() {
+    while (1) {
+        if (1) { // check if there's an empty slot in the sender window
+            packet_t* p_next_packet_to_send = dequeue_packet();
+            // and send
+        }
+    }
+}
