@@ -4,4 +4,6 @@ project (congestion)
 add_executable(congestion
     3a/reliable.c
     3a/rlib.c
-    3a/rlib.h)
+    3a/rlib.h
+    3a/sliding_window.c
+    3a/sliding_window.h)
