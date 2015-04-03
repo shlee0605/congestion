@@ -35,9 +35,6 @@ packet_t *dequeue_packet() {
     }
 }
 
-/// Enqueues a new packet to the end of the queue.
-/// The packet will be picked up by the Sliding Window algorithm
-/// as soon as possible.
 void enqueue_packet(packet_t *p_packet) {
     if (rear == NULL) {
         rear = (struct packet_node *) malloc(1 * sizeof(struct packet_node));
