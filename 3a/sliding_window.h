@@ -12,6 +12,6 @@ void enqueue_packet(packet_t *p_packet);
 
 void fill_window();
 
-void show_window(packet_t *buffer, int len);
+void show_window(packet_t** buffer, int len);
 
 #endif //_CONGESTION_SLIDING_WINDOW_H_
