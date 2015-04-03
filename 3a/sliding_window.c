@@ -1,6 +1,7 @@
 #include "rlib.h"
 #include "sliding_window.h"
 #include <stdlib.h>
+#include <string.h>
 
 // Queue implementation references
 // http://www.sanfoundry.com/c-program-queue-using-linked-list/
@@ -60,12 +61,11 @@ void fill_window() {
 		if(sliding_window[i] == NULL) {
 			packet_t* p_next_packet_to_send = dequeue_packet();
 			sliding_window[i] = p_next_packet_to_send;
-			return;
 		}
 	}
 }
 
-void show_window(packet_t *buffer, int len) {
+void show_window(packet_t *buffer[], int len) {
 	for(int i = 0; i < len; i++) {
 		buffer[i] = sliding_window[i + sws_head];
 	}
@@ -74,7 +74,7 @@ void show_window(packet_t *buffer, int len) {
 void run_sw_periodic_helper() {
 	memset(sliding_window, NULL, 0);
     while (1) {
-        if () { // check if there's an empty slot in the sender window
+        if (1) { // check if there's an empty slot in the sender window
             
             // and send
 
