@@ -15,7 +15,9 @@
 
 #include "rlib.h"
 
-
+#define PACKET_SIZE 500
+#define HEADER_SIZE 12
+#define PAYLOAD_SIZE 500
 
 struct reliable_state {
   rel_t *next;			/* Linked list for traversing all connections */
@@ -99,49 +101,38 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 void
 rel_read (rel_t *s)
 {
-  // packet sizes are 500 bytes
-  int len = 500 * (s->cc->window);
-  char buf[len];
-  int bytes_total = 0;
-
-  // call conn_input to get the data to send in the packets
-  while(1) {
-    int bytes_read = conn_input(s->c, buf, len);
-    // no data is available
-    if(bytes_read == -1) {
-      // According to the instructions, conn_input() should return 0
-      // when no data is available, but it seems it actually returns -1
-      // because read() is causing EAGAIN for some reason.
-      return;
-    }
-    // EOF is received
-    if(bytes_read == 0) {
-      // According to the instructions, conn_input() should return -1
-      // when EOF is met, but it seems it actually returns 0
-      // because read() is causing EAGAIN for some reason.
-      break;
-    }
-    bytes_total += bytes_read;
-  }
-  // buf[bytes_total] = 0;
-  // fprintf(stderr, "%s", buf);
-
-  // create a packet with the data
-  packet_t pkt;
-  memcpy(pkt.data, buf, 500);
-  pkt.cksum = 0;
-  if(bytes_total > 500) {
-    pkt.len = 12 + 500;
-  } else {
-    pkt.len = 12 + bytes_total;
-  }
-  pkt.ackno = 0;
-  pkt.seqno = 0;
+  //initialize a packet
+  packet_t *pkt;
+  pkt = xmalloc(sizeof(pkt));
+  memset(pkt->data, 0, PAYLOAD_SIZE);
   
-  // send packet to receiver using conn_sendpkt
-  print_pkt (&pkt, "send", pkt.len);
-  conn_sendpkt(s->c, &pkt, pkt.len);
+  // call conn_input to get the data to send in the packets
+  int bytes_read = conn_input(s->c, pkt->data, PAYLOAD_SIZE);
+  
+  // no data is available
+  if(bytes_read == 0) {
+    free(pkt);
+    // According to the instructions, conn_input() should return 0
+    // when no data is available, but it seems it actually returns -1
+    // because read() is causing EAGAIN for some reason.
+    return;
+  }
+  
+  if(bytes_read == -1) {
+    pkt->len = HEADER_SIZE;
+  }
+  else {
+    pkt->len = HEADER_SIZE + bytes_read;
+  }
+      
+  pkt->cksum = 0;
+  pkt->ackno = 0;
+  pkt->seqno = 0;
 
+  // send packet to sliding window queue
+  print_pkt (pkt, "send", pkt->len);
+  conn_sendpkt(s->c, pkt, pkt->len);
+  //free(pkt);
 }
 
 void
