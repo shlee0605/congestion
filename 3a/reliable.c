@@ -160,6 +160,8 @@ rel_timer ()
 
 }
 
+/* This function sets the packet in network byte order and calculates checksum.
+   This should be called before sending a packet (conn_sendpkt) */
 void set_network_bytes_and_checksum(packet_t* pkt) {
   int packet_length = (int)pkt->len;
   pkt->len = htons(pkt->len);
