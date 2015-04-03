@@ -103,23 +103,27 @@ rel_read (rel_t *s)
   char buf[len];
   int bytesTotal = 0;
 
-  fprintf(stderr, "%d\n", len);
-
   // call conn_input to get the data to send in the packets
   while(1) {
     int bytesRead = conn_input(s->c, buf, len);
     // no data is available
-    if(bytesRead == 0) {
+    if(bytesRead == -1) {
+      // According to the instructions, conn_input() should return 0
+      // when no data is available, but it seems it actually returns -1
+      // because read() is causing EAGAIN for some reason.
       return;
     }
     // EOF is received
-    if(bytesRead == -1) {
+    if(bytesRead == 0) {
+      // According to the instructions, conn_input() should return -1
+      // when EOF is met, but it seems it actually returns 0
+      // because read() is causing EAGAIN for some reason.
       break;
     }
     bytesTotal += bytesRead;
   }
   
-  fprintf(stderr, "%s\n", buf);
+  fprintf(stderr, "%s", buf);
 
   // create a packet with the data
   //packet_t pkt;
