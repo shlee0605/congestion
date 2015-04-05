@@ -16,6 +16,7 @@
 #include "reliable.h"
 
 void set_network_bytes_and_checksum(packet_t* pkt);
+void set_host_bytes(packet_t* pkt);
 void initialize_sw_info(const struct config_common *cc, sw_t* sliding);
 struct reliable_state;
 rel_t *rel_list;
@@ -92,6 +93,7 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
   uint16_t original = pkt->cksum;
   pkt->cksum = 0;
   uint16_t new = cksum((void*)pkt, n);
+  set_host_bytes(pkt);
 
   if(original == new) {
     // call sliding window algorithm
@@ -184,6 +186,13 @@ void set_network_bytes_and_checksum(packet_t* pkt) {
   pkt->cksum = cksum((void*)pkt, packet_length);
 }
 
+void set_host_bytes(packet_t* pkt) {
+  pkt->len = ntohs(pkt->len);
+  pkt->ackno = ntohl(pkt->ackno);
+  if(pkt->len != ACK_PACKET_SIZE) {
+    pkt->seqno = ntohl(pkt->seqno);
+  }
+}
 
 void initialize_sw_info(const struct config_common *cc, sw_t* sliding) {
   sliding->w_size = cc->window;
