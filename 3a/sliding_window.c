@@ -1,6 +1,5 @@
 #include <assert.h>
 #include "reliable.h"
-#include "sliding_window.h"
 #include <string.h>
 #include <stdlib.h>
 
