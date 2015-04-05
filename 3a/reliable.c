@@ -31,7 +31,7 @@ struct reliable_state {
 
   /* Add your own data fields below this */
   const struct config_common *cc;
-  int read_eof; /* 1 - received eof, 0 - not received eof */
+  int file_eof; /* 1 - received eof, 0 - not received eof */
 };
 rel_t *rel_list;
 
@@ -66,7 +66,7 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
 
   /* Do any other initialization you need here */
   r->cc = cc;
-  r->read_eof = 0;
+  r->file_eof = 0;
   return r;
 }
 
@@ -118,7 +118,7 @@ rel_read (rel_t *s)
     int bytes_read = conn_input(s->c, buf, PAYLOAD_SIZE);
     
     // no data is available
-    if(bytes_read == 0 || (bytes_read == -1 && s->read_eof == 1)) {
+    if(bytes_read == 0 || (bytes_read == -1 && s->file_eof == 1)) {
       // According to the instructions, conn_input() should return 0
       // when no data is available, but it seems it actually returns -1
       // because read() is causing EAGAIN for some reason.
@@ -129,11 +129,10 @@ rel_read (rel_t *s)
     int pkt_len = HEADER_SIZE;
 
     if(bytes_read == -1) {
-      s->read_eof = 1;
-      pkt_len = HEADER_SIZE;
+      s->file_eof = 1;
     }
-    else if(bytes_read > 0) {
-      pkt_len = HEADER_SIZE + bytes_read;
+    if(bytes_read > 0) {
+      pkt_len += bytes_read;
       memset(pkt->data, 0, PAYLOAD_SIZE);        
       memcpy(pkt->data, buf, PAYLOAD_SIZE);
     }  
