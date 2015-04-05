@@ -15,7 +15,13 @@
 
 #include "rlib.h"
 
+#define PACKET_SIZE 500
+#define HEADER_SIZE 12
+#define PAYLOAD_SIZE 500
+#define ACK_PACKET_SIZE 8
 
+void set_network_bytes_and_checksum(packet_t* pkt); 
+void send_ack_packet(rel_t* r);
 
 struct reliable_state {
   rel_t *next;			/* Linked list for traversing all connections */
@@ -25,6 +31,7 @@ struct reliable_state {
 
   /* Add your own data fields below this */
   const struct config_common *cc;
+  int file_eof; /* 1 - received eof, 0 - not received eof */
 };
 rel_t *rel_list;
 
@@ -59,6 +66,7 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
 
   /* Do any other initialization you need here */
   r->cc = cc;
+  r->file_eof = 0;
   return r;
 }
 
@@ -92,61 +100,61 @@ rel_demux (const struct config_common *cc,
 void
 rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
-  print_pkt (pkt, "recv", n);
+  //print_pkt (pkt, "recv", n);
+  
+  //add packet to receiver's slide window queue
+  conn_output(r->c, (void*) pkt->data, n-HEADER_SIZE);
 }
 
 
 void
 rel_read (rel_t *s)
 {
-  // packet sizes are 500 bytes
-  int len = 500 * (s->cc->window);
-  char buf[len];
-  int bytes_total = 0;
-
-  // call conn_input to get the data to send in the packets
+  char buf[PAYLOAD_SIZE];
+  //initialize a packet
   while(1) {
-    int bytes_read = conn_input(s->c, buf, len);
+      
+    // call conn_input to get the data to send in the packets
+    int bytes_read = conn_input(s->c, buf, PAYLOAD_SIZE);
+    
     // no data is available
-    if(bytes_read == -1) {
+    if(bytes_read == 0 || (bytes_read == -1 && s->file_eof == 1)) {
       // According to the instructions, conn_input() should return 0
       // when no data is available, but it seems it actually returns -1
       // because read() is causing EAGAIN for some reason.
       return;
     }
-    // EOF is received
-    if(bytes_read == 0) {
-      // According to the instructions, conn_input() should return -1
-      // when EOF is met, but it seems it actually returns 0
-      // because read() is causing EAGAIN for some reason.
-      break;
+
+    packet_t *pkt = (packet_t*)malloc(sizeof(packet_t));
+    int pkt_len = HEADER_SIZE;
+
+    if(bytes_read == -1) {
+      s->file_eof = 1;
     }
-    bytes_total += bytes_read;
-  }
-  // buf[bytes_total] = 0;
-  // fprintf(stderr, "%s", buf);
+    if(bytes_read > 0) {
+      pkt_len += bytes_read;
+      memset(pkt->data, 0, PAYLOAD_SIZE);        
+      memcpy(pkt->data, buf, PAYLOAD_SIZE);
+    }  
 
-  // create a packet with the data
-  packet_t pkt;
-  memcpy(pkt.data, buf, 500);
-  pkt.cksum = 0;
-  if(bytes_total > 500) {
-    pkt.len = 12 + 500;
-  } else {
-    pkt.len = 12 + bytes_total;
-  }
-  pkt.ackno = 0;
-  pkt.seqno = 0;
-  
-  // send packet to receiver using conn_sendpkt
-  print_pkt (&pkt, "send", pkt.len);
-  conn_sendpkt(s->c, &pkt, pkt.len);
+    pkt->cksum = 0;
+    pkt->ackno = 0;
+    pkt->seqno = 0;
+    pkt->len = pkt_len;
 
+    // send packet to sliding window queue
+    set_network_bytes_and_checksum(pkt); 
+    //print_pkt (pkt, "send", pkt_len);
+    conn_sendpkt(s->c, pkt, pkt_len);
+
+    // packet needs to be freed after getting acknowledgement
+  }
 }
 
 void
 rel_output (rel_t *r)
 {
+  
 }
 
 void
@@ -155,3 +163,30 @@ rel_timer ()
   /* Retransmit any packets that need to be retransmitted */
 
 }
+
+/* This function sets the packet in network byte order and calculates checksum.
+   This should be called before sending a packet (conn_sendpkt) */
+void set_network_bytes_and_checksum(packet_t* pkt) {
+  int packet_length = (int)pkt->len;
+  pkt->len = htons(pkt->len);
+  pkt->ackno = htonl(pkt->ackno);
+  if(packet_length != ACK_PACKET_SIZE) {
+    pkt->seqno = htonl(pkt->seqno);
+  }
+  pkt->cksum = cksum((void*)pkt, packet_length);
+}
+
+void send_ack_packet(rel_t* r) {
+  packet_t *pkt = (packet_t*) malloc(sizeof(packet_t));
+  pkt->len = ACK_PACKET_SIZE;
+  //TODO: set the correct ackno value.
+  pkt->ackno = 0;
+  pkt->cksum = 0;
+  
+  set_network_bytes_and_checksum(pkt);
+
+  print_pkt((void *)pkt, "ack", ACK_PACKET_SIZE); 
+  //enqueue packet to sliding window? or directly send it?
+  conn_sendpkt(r->c, pkt, ACK_PACKET_SIZE);
+}
+
