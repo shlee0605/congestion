@@ -63,7 +63,7 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
   int seq_num = p_packet->seqno;
   // If SeqNum ≤ LFR or SeqNum > LAF,
   int lfr = p_sw->left;
-  int laf = lfr + p_sw->w_size;
+  int laf = p_sw->right;
   if (seq_num <= lfr || seq_num > laf) {
     // then the frame is outside the receiver’s window and it is discarded.
     return;
@@ -100,8 +100,8 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
     int next_ackno = highest_acked_packet + 1;
     send_ack_packet(p_rel, (uint32_t) next_ackno);
     // It then updates LFR and LAF.
-    lfr = p_sw->left = highest_acked_packet;
-    laf = p_sw->right = lfr + p_sw->w_size;
+    p_sw->left = highest_acked_packet; // lfr
+    p_sw->right = lfr + p_sw->w_size;  // laf
   }
 }
 
