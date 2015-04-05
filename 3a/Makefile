@@ -31,10 +31,10 @@ all: reliable
 .c.o:
 	$(CC) $(CFLAGS) -c $<
 
-rlib.o reliable.o: rlib.h
+rlib.o reliable.o: rlib.h sliding_window.h
 
-reliable: reliable.o rlib.o
-	$(CC) $(CFLAGS) -o $@ reliable.o rlib.o $(LIBS) $(LIBRT)
+reliable: reliable.o rlib.o sliding_window.o
+	$(CC) $(CFLAGS) -o $@ reliable.o rlib.o sliding_window.o $(LIBS) $(LIBRT)
 
 .PHONY: tester reference
 tester reference:
