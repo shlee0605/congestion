@@ -18,8 +18,10 @@
 #define PACKET_SIZE 500
 #define HEADER_SIZE 12
 #define PAYLOAD_SIZE 500
+#define ACK_PACKET_SIZE 8
 
 void set_network_bytes_and_checksum(packet_t* pkt); 
+void send_ack_packet(rel_t* r);
 
 struct reliable_state {
   rel_t *next;			/* Linked list for traversing all connections */
@@ -98,7 +100,10 @@ rel_demux (const struct config_common *cc,
 void
 rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
-  print_pkt (pkt, "recv", n);
+  //print_pkt (pkt, "recv", n);
+  
+  //add packet to receiver's slide window queue
+  conn_output(r->c, (void*) pkt->data, n);
 }
 
 
@@ -111,7 +116,6 @@ rel_read (rel_t *s)
       
     // call conn_input to get the data to send in the packets
     int bytes_read = conn_input(s->c, buf, PAYLOAD_SIZE);
-    fprintf(stderr, "%d\n", bytes_read); 
     
     // no data is available
     if(bytes_read == 0 || (bytes_read == -1 && s->read_eof == 1)) {
@@ -141,7 +145,7 @@ rel_read (rel_t *s)
 
     // send packet to sliding window queue
     set_network_bytes_and_checksum(pkt); 
-    print_pkt (pkt, "send", pkt_len);
+    //print_pkt (pkt, "send", pkt_len);
     conn_sendpkt(s->c, pkt, pkt_len);
 
     // packet needs to be freed after getting acknowledgement
@@ -151,6 +155,7 @@ rel_read (rel_t *s)
 void
 rel_output (rel_t *r)
 {
+  
 }
 
 void
@@ -166,6 +171,23 @@ void set_network_bytes_and_checksum(packet_t* pkt) {
   int packet_length = (int)pkt->len;
   pkt->len = htons(pkt->len);
   pkt->ackno = htonl(pkt->ackno);
-  pkt->seqno = htonl(pkt->seqno);
+  if(packet_length != ACK_PACKET_SIZE) {
+    pkt->seqno = htonl(pkt->seqno);
+  }
   pkt->cksum = cksum((void*)pkt, packet_length);
 }
+
+void send_ack_packet(rel_t* r) {
+  packet_t *pkt = (packet_t*) malloc(sizeof(packet_t));
+  pkt->len = ACK_PACKET_SIZE;
+  //TODO: set the correct ackno value.
+  pkt->ackno = 0;
+  pkt->cksum = 0;
+  
+  set_network_bytes_and_checksum(pkt);
+
+  print_pkt((void *)pkt, "ack", ACK_PACKET_SIZE); 
+  //enqueue packet to sliding window? or directly send it?
+  conn_sendpkt(r->c, pkt, ACK_PACKET_SIZE);
+}
+
