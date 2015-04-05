@@ -15,7 +15,8 @@ struct reliable_state {
     /* Add your own data fields below this */
     const struct config_common *cc;
     int file_eof; /* 1 - received eof, 0 - not received eof */
-    sw_t* sw_info;
+    sw_t* sw_sender;
+    sw_t* sw_receiver;
 };
 
 void rel_destroy (rel_t *r);

@@ -51,8 +51,10 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
   /* Do any other initialization you need here */
   r->cc = cc;
   r->file_eof = 0;
-  r->sw_info = (sw_t*)malloc(sizeof(sw_t));
-  initialize_sw_info(r->cc, r->sw_info);
+  r->sw_sender = (sw_t*)malloc(sizeof(sw_t));
+  r->sw_receiver = (sw_t*)malloc(sizeof(sw_t));
+  initialize_sw_info(r->cc, r->sw_sender);
+  initialize_sw_info(r->cc, r->sw_receiver);
   return r;
 }
 
@@ -182,6 +184,6 @@ void set_network_bytes_and_checksum(packet_t* pkt) {
 
 void initialize_sw_info(const struct config_common *cc, sw_t* sliding) {
   sliding->w_size = cc->window;
-  sliding->seq_num = 0;
-  sliding->ack_num = 0;
+  sliding->left = 0;
+  sliding->right = 0;
 }
