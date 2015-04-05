@@ -48,7 +48,7 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
   p_slot->ackno = p_packet->ackno;
   p_slot->cksum = p_packet->cksum;
   p_slot->len = p_packet->len;
-  strcpy(&(p_slot->data), &(p_packet->data));
+  strcpy(p_slot->data, p_packet->data);
   if (p_packet->seqno != seq_num_to_ack) {
     // If the received packet *is* SeqNumToAck,
     // send an ACK for all received packets contiguous to SeqNumToAck.
