@@ -92,11 +92,15 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
   // check if the packet is valid using checksum.
   uint16_t original = pkt->cksum;
   pkt->cksum = 0;
-  uint16_t new = cksum((void*)pkt, n);
+  uint16_t new = cksum((void*)pkt, (int) n);
   set_host_bytes(pkt);
 
-  if(original == new) {
-    // call sliding window algorithm
+  if (pkt->len == ACK_PACKET_SIZE) {
+    print_pkt (pkt, "ack received", (int) n); // for debugging purposes
+  }
+
+  if(original == new && pkt->len != ACK_PACKET_SIZE) {
+    sw_recv_packet(r, pkt);
     conn_output(r->c, (void*) pkt->data, n-HEADER_SIZE); // this is just here for testing purposes (should be replaced after pr#14)
   }
 }
@@ -196,6 +200,9 @@ void set_host_bytes(packet_t* pkt) {
 
 void initialize_sw_info(const struct config_common *cc, sw_t* sliding) {
   sliding->w_size = cc->window;
-  sliding->left = 0;
+  sliding->left = -1;
   sliding->right = 0;
+  for (int i = 0; i < SEQUENCE_SPACE_SIZE; ++i) {
+    sliding->sliding_window[i].ackno = UNACKED;
+  }
 }

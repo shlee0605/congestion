@@ -2,6 +2,7 @@
 #include "reliable.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 void check_receiver_invariant(const sw_t* p_sw);
 void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet);
@@ -21,10 +22,10 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
   // word-by-word translation of Computer Networks: a Systems Approach p.108-109
 
   // When a frame with sequence number SeqNum arrives,
-  uint32_t seq_num = p_packet->seqno;
+  int seq_num = p_packet->seqno;
   // If SeqNum ≤ LFR or SeqNum > LAF,
-  uint32_t laf = p_sw->right;
-  uint32_t lfr = p_sw->left;
+  int laf = p_sw->right;
+  int lfr = p_sw->left;
   if (seq_num <= lfr && seq_num > laf) {
     // then the frame is outside the receiver’s window and it is discarded.
     return;
@@ -35,7 +36,7 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
   // Let SeqNumToAck denote the largest sequence number not yet acknowledged,
   // such that all frames with sequence numbers
   // less than or equal to SeqNumToAck have been received.
-  uint32_t seq_num_to_ack = lfr + 1;
+  int seq_num_to_ack = lfr + 1;
   while (seq_num_to_ack < SEQUENCE_SPACE_SIZE &&
       p_sw->sliding_window[seq_num_to_ack].ackno != UNACKED) {
     seq_num_to_ack += 1;
@@ -49,13 +50,13 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
   p_slot->cksum = p_packet->cksum;
   p_slot->len = p_packet->len;
   strcpy(p_slot->data, p_packet->data);
-  if (p_packet->seqno != seq_num_to_ack) {
+  if (p_packet->seqno == seq_num_to_ack) {
     // If the received packet *is* SeqNumToAck,
     // send an ACK for all received packets contiguous to SeqNumToAck.
-    uint32_t i = seq_num_to_ack;
+    int i = seq_num_to_ack;
     while (i < SEQUENCE_SPACE_SIZE &&
         p_sw->sliding_window[i].ackno != UNACKED) {
-      send_ack_packet(p_rel, i);
+      send_ack_packet(p_rel, (uint32_t) i);
       i += 1;
     }
     // It then updates LFR and LAF.
