@@ -101,7 +101,7 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
     send_ack_packet(p_rel, (uint32_t) next_ackno);
     // It then updates LFR and LAF.
     p_sw->left = highest_acked_packet; // lfr
-    p_sw->right = lfr + p_sw->w_size;  // laf
+    p_sw->right = p_sw->left + p_sw->w_size;  // laf
   }
 }
 
