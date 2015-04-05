@@ -1,7 +1,6 @@
 #include "rlib.h"
 #include "sliding_window.h"
 
-#define PACKET_SIZE 500
 #define HEADER_SIZE 12
 #define PAYLOAD_SIZE 500
 #define ACK_PACKET_SIZE 8
