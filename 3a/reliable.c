@@ -103,7 +103,8 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
   //print_pkt (pkt, "recv", n);
   
   //add packet to receiver's slide window queue
-  conn_output(r->c, (void*) pkt->data, n-HEADER_SIZE);
+
+  conn_output(r->c, (void*) pkt->data, n-HEADER_SIZE); // this is just here for testing purposes
 }
 
 
@@ -119,6 +120,17 @@ rel_read (rel_t *s)
     
     // no data is available
     if(bytes_read == 0 || (bytes_read == -1 && s->file_eof == 1)) {
+      // When a keyboard input is pushed into stdin,
+      // EOF is never hit and bytes_read never becomes -1
+      // (instead it becomes 0 on the second round).
+      // But when a file input is redirected into stdin,
+      // EOF is hit and bytes_read does become -1.
+      // Furthermore, without the new condition,
+      // this while loop runs multiple times with bytes_read being -1.
+      // To make sure the loop stops immediately after
+      // bytes_read becomes -1 for the first time,
+      // the new conditions is placed.
+
       // According to the instructions, conn_input() should return 0
       // when no data is available, but it seems it actually returns -1
       // because read() is causing EAGAIN for some reason.
@@ -126,10 +138,15 @@ rel_read (rel_t *s)
     }
 
     packet_t *pkt = (packet_t*)malloc(sizeof(packet_t));
-    int pkt_len = HEADER_SIZE;
+    int pkt_len = HEADER_SIZE; // This initialization means:
+    // when an EOF is read in, send an EOF packet
+    // (a packet that marks the end of a message).
+    // Notice how it is unchanged in the following if block.
 
     if(bytes_read == -1) {
       s->file_eof = 1;
+      // see the comment inside the preceding if block with the condition
+      // bytes_read == 0 || (bytes_read == -1 && s->file_eof == 1
     }
     if(bytes_read > 0) {
       pkt_len += bytes_read;
@@ -186,7 +203,6 @@ void send_ack_packet(rel_t* r) {
   set_network_bytes_and_checksum(pkt);
 
   print_pkt((void *)pkt, "ack", ACK_PACKET_SIZE); 
-  //enqueue packet to sliding window? or directly send it?
   conn_sendpkt(r->c, pkt, ACK_PACKET_SIZE);
 }
 
