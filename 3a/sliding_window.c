@@ -19,6 +19,14 @@ struct packet_node {
     struct packet_node *ptr;
 } *front, *rear, *temp, *front1;
 
+struct sliding_window_info {
+    packet_t* sliding_window;
+    int w_size;
+    uint32_t seq_num;
+    uint32_t ack_num;
+}
+typedef struct sliding_window_info sw_t;
+
 packet_t *dequeue_packet() {
     front1 = front;
     if (front1 == NULL) {
