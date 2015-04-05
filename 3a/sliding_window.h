@@ -18,10 +18,10 @@
 		* LAF - LFR <= RWS
 */
 struct sliding_window_info {
-    packet_t sliding_window[128];
-    int w_size;
-    uint32_t left;
-    uint32_t right;
+  packet_t sliding_window[128];
+  int w_size;
+  uint32_t left;
+  uint32_t right;
 };
 typedef struct sliding_window_info sw_t;
 
