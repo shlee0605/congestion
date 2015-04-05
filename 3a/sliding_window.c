@@ -15,7 +15,7 @@ void check_receiver_invariant(const sw_t* p_sw) {
     assert(laf_idx - lfr_idx <= window_size);
 }
 
-void recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
+void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
     sw_t* p_sw = p_rel->sw_receiver;
     check_receiver_invariant(p_sw);
 
