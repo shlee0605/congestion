@@ -1,6 +1,12 @@
 #include "rlib.h"
 #include "sliding_window.h"
 
+#ifdef NDEBUG
+    #define DEBUG(M, ...)
+#else
+    #define DEBUG(M, ...) fprintf(stderr, "[DEBUG] %s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#endif
+
 #define HEADER_SIZE 12
 #define PAYLOAD_SIZE 500
 #define ACK_PACKET_SIZE 8

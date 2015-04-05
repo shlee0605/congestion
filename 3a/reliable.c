@@ -87,12 +87,12 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
   set_host_bytes(pkt);
 
   if (pkt->len == ACK_PACKET_SIZE) {
-    fprintf(stderr, "it is an ACK packet\n");
+    DEBUG("it is an ACK packet\n");
     sw_recv_ack(r, pkt->ackno);
   }
 
   if(original == new && pkt->len != ACK_PACKET_SIZE) {
-    fprintf(stderr, "it is a data packet\n");
+    DEBUG("it is a data packet\n");
     sw_recv_packet(r, pkt);
     conn_output(r->c, (void*) pkt->data, n-HEADER_SIZE); // this is just here for testing purposes (should be replaced after pr#14)
   }
@@ -156,7 +156,7 @@ rel_read (rel_t *s)
 void
 rel_output (rel_t *r)
 {
-  
+
 }
 
 void

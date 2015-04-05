@@ -1,4 +1,4 @@
-
+DEBUG_MODE = no
 
 # Debug malloc support (http://dmalloc.com).  Comment out if you don't
 # have dmalloc, but it is highly recommended.
@@ -23,7 +23,13 @@ else
 endif
 
 CC = gcc
-CFLAGS = -g -Wall $(DMALLOC_CFLAGS)
+CFLAGS_RELEASE = -g -Wall $(DMALLOC_CFLAGS) -DNDEBUG
+CFLAGS_DEBUG = -g -Wall $(DMALLOC_CFLAGS)
+ifeq ($(DEBUG_MODE), yes)
+	CFLAGS = $(CFLAGS_DEBUG)
+else
+	CFLAGS = $(CFLAGS_RELEASE)
+endif
 LIBS = $(DMALLOC_LIBS)
 
 all: reliable

@@ -17,6 +17,7 @@
 #include <poll.h>
 #include <signal.h>
 
+#include "reliable.h"
 #include "rlib.h"
 
 char *progname;
@@ -130,18 +131,18 @@ print_pkt (const packet_t *buf, const char *op, int n)
     pid = getpid ();
   if (n < 0) {
     if (errno != EAGAIN)
-      fprintf (stderr, "%5d %s(%3d): %s\n", pid, op, n, strerror (errno));
+      DEBUG("%5d %s(%3d): %s\n", pid, op, n, strerror (errno));
   }
   else if (n == 8)
-    fprintf (stderr, "%5d %s(%3d): cksum = %04x, len = %04x, ack = %08x\n",
+    DEBUG("%5d %s(%3d): cksum = %04x, len = %04x, ack = %08x\n",
 	     pid, op, n, buf->cksum, ntohs (buf->len), ntohl (buf->ackno));
   else if (n >= 12)
-    fprintf (stderr,
+    DEBUG(
 	     "%5d %s(%3d): cksum = %04x, len = %04x, ack = %08x, seq = %08x\n",
 	     pid, op, n, buf->cksum, ntohs (buf->len), ntohl (buf->ackno),
 	     ntohl (buf->seqno));
   else
-    fprintf (stderr, "%5d %s(%3d):\n", pid, op, n);
+    DEBUG("%5d %s(%3d):\n", pid, op, n);
   errno = saved_errno;
 }
 
