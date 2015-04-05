@@ -88,13 +88,16 @@ rel_demux (const struct config_common *cc,
 void
 rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
-  //print_pkt (pkt, "recv", n);
-  
-  //add packet to receiver's slide window queue
+  // check if the packet is valid using checksum.
+  uint16_t original = pkt->cksum;
+  pkt->cksum = 0;
+  uint16_t new = cksum((void*)pkt, n);
 
-  conn_output(r->c, (void*) pkt->data, n-HEADER_SIZE); // this is just here for testing purposes
+  if(original == new) {
+    // call sliding window algorithm
+    conn_output(r->c, (void*) pkt->data, n-HEADER_SIZE); // this is just here for testing purposes (should be replaced after pr#14)
+  }
 }
-
 
 void
 rel_read (rel_t *s)
