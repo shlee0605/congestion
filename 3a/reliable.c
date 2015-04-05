@@ -1,9 +1,8 @@
+#include "reliable.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/socket.h>
-
-#include "reliable.h"
 
 void set_network_bytes_and_checksum(packet_t* pkt);
 void set_host_bytes(packet_t* pkt);

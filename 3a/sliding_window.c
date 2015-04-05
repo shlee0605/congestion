@@ -2,7 +2,6 @@
 #include "reliable.h"
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 void check_receiver_invariant(const sw_t* p_sw);
 void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet);
