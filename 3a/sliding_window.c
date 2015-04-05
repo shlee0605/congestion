@@ -14,6 +14,18 @@ void check_receiver_invariant(const sw_t* p_sw) {
   assert(laf_idx - lfr_idx <= window_size);
 }
 
+void send_ack_packet(const rel_t* r, uint32_t ackno) {
+  packet_t* pkt = (packet_t*) malloc(sizeof(packet_t));
+  pkt->len = ACK_PACKET_SIZE;
+  pkt->ackno = ackno;
+  pkt->cksum = 0;
+
+  set_network_bytes_and_checksum(pkt);
+
+  print_pkt((void*) pkt, "ack", ACK_PACKET_SIZE);
+  conn_sendpkt(r->c, pkt, ACK_PACKET_SIZE);
+}
+
 void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
   sw_t* p_sw = p_rel->sw_receiver;
   check_receiver_invariant(p_sw);
@@ -37,7 +49,7 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
   // less than or equal to SeqNumToAck have been received.
   int seq_num_to_ack = lfr + 1;
   while (seq_num_to_ack < SEQUENCE_SPACE_SIZE &&
-      p_sw->sliding_window[seq_num_to_ack].ackno != UNACKED) {
+         p_sw->sliding_window[seq_num_to_ack].ackno != UNACKED) {
     seq_num_to_ack += 1;
   }
   // TODO: what if seq_num_to_ack == SEQUENCE_SPACE_SIZE ?
@@ -54,7 +66,7 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
     // send an ACK for all received packets contiguous to SeqNumToAck.
     int i = seq_num_to_ack;
     while (i < SEQUENCE_SPACE_SIZE &&
-        p_sw->sliding_window[i].ackno != UNACKED) {
+           p_sw->sliding_window[i].ackno != UNACKED) {
       send_ack_packet(p_rel, (uint32_t) i);
       i += 1;
     }
@@ -62,16 +74,4 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
     lfr = p_sw->left = i - 1;
     laf = p_sw->right = lfr + p_sw->w_size;
   }
-}
-
-void send_ack_packet(const rel_t* r, uint32_t ackno) {
-  packet_t* pkt = (packet_t*) malloc(sizeof(packet_t));
-  pkt->len = ACK_PACKET_SIZE;
-  pkt->ackno = ackno;
-  pkt->cksum = 0;
-
-  set_network_bytes_and_checksum(pkt);
-
-  print_pkt((void*) pkt, "ack", ACK_PACKET_SIZE);
-  conn_sendpkt(r->c, pkt, ACK_PACKET_SIZE);
 }
