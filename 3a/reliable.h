@@ -1,4 +1,5 @@
 #include "rlib.h"
+#include "sliding_window.h"
 
 #define PACKET_SIZE 500
 #define HEADER_SIZE 12
@@ -14,6 +15,7 @@ struct reliable_state {
     /* Add your own data fields below this */
     const struct config_common *cc;
     int file_eof; /* 1 - received eof, 0 - not received eof */
+    sw_t* sw_info;
 };
 
 void rel_destroy (rel_t *r);

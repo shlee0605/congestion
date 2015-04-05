@@ -1,6 +1,15 @@
 #ifndef _CONGESTION_SLIDING_WINDOW_H_
 #define _CONGESTION_SLIDING_WINDOW_H_
 
+struct sliding_window_info {
+    packet_t sliding_window[128];
+    int w_size;
+    uint32_t seq_num;
+    uint32_t ack_num;
+};
+typedef struct sliding_window_info sw_t;
+
+
 /// Returns the packet_t* in the front of the queue.
 /// Returns NULL if the queue is empty.
 packet_t *dequeue_packet();
