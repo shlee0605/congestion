@@ -1,103 +1,71 @@
+#include <assert.h>
 #include "reliable.h"
 #include "sliding_window.h"
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 
-// Queue implementation references
-// http://www.sanfoundry.com/c-program-queue-using-linked-list/
+void check_receiver_invariant(const sw_t* p_sw);
+void recv_packet(const rel_t* p_rel, const packet_t* p_packet);
+void send_ack_packet(const rel_t* r, uint32_t ackno);
 
-#define UNACKED INT32_MAX
-#define WINDOW_SIZE 5
-
-int packet_queue_count = 0;
-rel_t* p_rel = NULL;
-packet_t* sliding_window[128];
-int sws_head = 0, sws_tail = WINDOW_SIZE;
-
-struct packet_node {
-    packet_t *info;
-    struct packet_node *ptr;
-} *front, *rear, *temp, *front1;
-
-packet_t *dequeue_packet() {
-    front1 = front;
-    if (front1 == NULL) {
-        return NULL;
-    }
-    else if (front1->ptr != NULL) {
-        front1 = front1->ptr;
-        packet_t *rtn = front->info;
-        rtn->ackno = UNACKED;
-        free(front);
-        front = front1;
-        packet_queue_count--;
-        return rtn;
-    }
-    else {
-        packet_t *rtn = front->info;
-        rtn->ackno = UNACKED;
-        free(front);
-        front = NULL;
-        rear = NULL;
-        packet_queue_count--;
-        return rtn;
-    }
+void check_receiver_invariant(const sw_t* p_sw) {
+    int laf_idx = p_sw->right;
+    int lfr_idx = p_sw->left;
+    int window_size = p_sw->w_size;
+    assert(laf_idx - lfr_idx <= window_size);
 }
 
-void enqueue_packet(packet_t *p_packet) {
-    if (rear == NULL) {
-        rear = (struct packet_node *) malloc(1 * sizeof(struct packet_node));
-        rear->ptr = NULL;
-        rear->info = p_packet;
-        front = rear;
+void recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
+    sw_t* p_sw = p_rel->sw_receiver;
+    check_receiver_invariant(p_sw);
+
+    // word-by-word translation of Computer Networks: a Systems Approach p.108-109
+
+    // When a frame with sequence number SeqNum arrives,
+    uint32_t seq_num = p_packet->seqno;
+    // If SeqNum ≤ LFR or SeqNum > LAF,
+    uint32_t laf = p_sw->right;
+    uint32_t lfr = p_sw->left;
+    if (seq_num <= lfr && seq_num > laf) {
+        // then the frame is outside the receiver’s window and it is discarded.
+        return;
     }
-    else {
-        temp = (struct packet_node *) malloc(1 * sizeof(struct packet_node));
-        rear->ptr = temp;
-        temp->info = p_packet;
-        temp->ptr = NULL;
-
-        rear = temp;
+    // If LFR < SeqNum ≤ LAF,
+    // then the frame is within the receiver’s window and it is accepted.
+    // Now the receiver needs to decide whether or not to send an ACK.
+    // Let SeqNumToAck denote the largest sequence number not yet acknowledged,
+    // such that all frames with sequence numbers
+    // less than or equal to SeqNumToAck have been received.
+    uint32_t seq_num_to_ack = lfr + 1;
+    while (seq_num_to_ack < SEQUENCE_SPACE_SIZE &&
+            p_sw->sliding_window[seq_num_to_ack].ackno != UNACKED) {
+        seq_num_to_ack += 1;
     }
-    packet_queue_count++;
-}
-
-void fill_window() {
-	for(int i = sws_head; i < sws_tail; i++) {
-		if(sliding_window[i] == NULL) {
-			packet_t* p_next_packet_to_send = dequeue_packet();
-			sliding_window[i] = p_next_packet_to_send;
-		}
-	}
-}
-
-void show_window(packet_t *buffer[], int len) {
-	for(int i = 0; i < len; i++) {
-		buffer[i] = sliding_window[i + sws_head];
-	}
-}
-
-void sw_set_reliable(rel_t* p) {
-    p_rel = p;
-}
-
-/// Returns 1 if every packet in the current window has been ACKed.
-/// Returns 0 otherwise.
-int is_window_all_acked() {
-    for (int i = sws_head; i < sws_tail; ++i) {
-        if (sliding_window[i]->ackno == UNACKED) {
-            return 1;
+    // TODO: what if seq_num_to_ack == SEQUENCE_SPACE_SIZE ?
+    // If the received packet is not SeqNumToAck,
+    // accpet the packet but don't send an ACK.
+    packet_t* p_slot = &(p_sw->sliding_window[p_packet->seqno]);
+    p_slot->seqno = p_packet->seqno;
+    p_slot->ackno = p_packet->ackno;
+    p_slot->cksum = p_packet->cksum;
+    p_slot->len = p_packet->len;
+    strcpy(&(p_slot->data), &(p_packet->data));
+    if (p_packet->seqno != seq_num_to_ack) {
+        // If the received packet *is* SeqNumToAck,
+        // send an ACK for all received packets contiguous to SeqNumToAck.
+        uint32_t i = seq_num_to_ack;
+        while (i < SEQUENCE_SPACE_SIZE &&
+                p_sw->sliding_window[i].ackno != UNACKED) {
+            send_ack_packet(p_rel, i);
+            i += 1;
         }
+        // It then updates LFR and LAF.
+        lfr = p_sw->left = i - 1;
+        laf = p_sw->right = lfr + p_sw->w_size;
     }
-    return 0;
 }
 
-void slide_window(int byHowMany) {
-    sws_head += byHowMany;
-    sws_tail += byHowMany;
-}
-
-void send_ack_packet(rel_t* r, uint32_t ackno) {
+void send_ack_packet(const rel_t* r, uint32_t ackno) {
     packet_t *pkt = (packet_t*) malloc(sizeof(packet_t));
     pkt->len = ACK_PACKET_SIZE;
     //TODO: set the correct ackno value.
@@ -108,20 +76,4 @@ void send_ack_packet(rel_t* r, uint32_t ackno) {
 
     print_pkt((void *)pkt, "ack", ACK_PACKET_SIZE);
     conn_sendpkt(r->c, pkt, ACK_PACKET_SIZE);
-}
-
-void sw_run_periodic_helper() {
-	memset(sliding_window, NULL, 0);
-
-    fill_window();
-    conn_sendpkt(p_rel->c, sliding_window, WINDOW_SIZE);
-    while (1) {
-        if (is_window_all_acked()) {
-            slide_window(WINDOW_SIZE);
-            fill_window();
-            conn_sendpkt(p_rel->c, sliding_window, WINDOW_SIZE);
-        }
-
-        // TODO: receive ACKs here
-    }
 }
