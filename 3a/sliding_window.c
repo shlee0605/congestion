@@ -36,8 +36,8 @@ void send_ack_packet(const rel_t* r, uint32_t ackno) {
   packet_t processed_pkt;
   set_network_bytes_and_checksum(&processed_pkt, &pkt);
 
-  print_pkt(&processed_pkt, "sending ack", sizeof(processed_pkt));
-  conn_sendpkt(r->c, &processed_pkt, sizeof(processed_pkt));
+  print_pkt(&processed_pkt, "sending ack", ACK_PACKET_SIZE);
+  conn_sendpkt(r->c, &processed_pkt, ACK_PACKET_SIZE);
 }
 
 void sw_recv_ack(const rel_t* p_rel, int ackno) {
