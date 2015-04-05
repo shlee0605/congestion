@@ -67,7 +67,6 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
 void send_ack_packet(const rel_t* r, uint32_t ackno) {
     packet_t *pkt = (packet_t*) malloc(sizeof(packet_t));
     pkt->len = ACK_PACKET_SIZE;
-    //TODO: set the correct ackno value.
     pkt->ackno = ackno;
     pkt->cksum = 0;
 
