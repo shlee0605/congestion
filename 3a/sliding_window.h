@@ -25,6 +25,6 @@ struct sliding_window_info {
 };
 typedef struct sliding_window_info sw_t;
 
-void recv_packet(const rel_t* p_rel, const packet_t* p_packet);
+void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet);
 
 #endif //_CONGESTION_SLIDING_WINDOW_H_

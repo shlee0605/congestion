@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 void check_receiver_invariant(const sw_t* p_sw);
-void recv_packet(const rel_t* p_rel, const packet_t* p_packet);
+void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet);
 void send_ack_packet(const rel_t* r, uint32_t ackno);
 
 void check_receiver_invariant(const sw_t* p_sw) {
