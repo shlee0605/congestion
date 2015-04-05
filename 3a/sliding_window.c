@@ -1,5 +1,4 @@
-#include "reliable.c"
-#include "rlib.h"
+#include "reliable.h"
 #include "sliding_window.h"
 #include <stdlib.h>
 #include <string.h>
@@ -96,6 +95,19 @@ int is_window_all_acked() {
 void slide_window(int byHowMany) {
     sws_head += byHowMany;
     sws_tail += byHowMany;
+}
+
+void send_ack_packet(rel_t* r, uint32_t ackno) {
+    packet_t *pkt = (packet_t*) malloc(sizeof(packet_t));
+    pkt->len = ACK_PACKET_SIZE;
+    //TODO: set the correct ackno value.
+    pkt->ackno = ackno;
+    pkt->cksum = 0;
+
+    set_network_bytes_and_checksum(pkt);
+
+    print_pkt((void *)pkt, "ack", ACK_PACKET_SIZE);
+    conn_sendpkt(r->c, pkt, ACK_PACKET_SIZE);
 }
 
 void sw_run_periodic_helper() {

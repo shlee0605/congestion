@@ -13,26 +13,12 @@
 #include <sys/uio.h>
 #include <netinet/in.h>
 
-#include "rlib.h"
+#include "reliable.h"
 
-#define PACKET_SIZE 500
-#define HEADER_SIZE 12
-#define PAYLOAD_SIZE 500
-#define ACK_PACKET_SIZE 8
+void set_network_bytes_and_checksum(packet_t* pkt);
 
-void set_network_bytes_and_checksum(packet_t* pkt); 
-void send_ack_packet(rel_t* r);
+struct reliable_state;
 
-struct reliable_state {
-  rel_t *next;			/* Linked list for traversing all connections */
-  rel_t **prev;
-
-  conn_t *c;			/* This is the connection object */
-
-  /* Add your own data fields below this */
-  const struct config_common *cc;
-  int file_eof; /* 1 - received eof, 0 - not received eof */
-};
 rel_t *rel_list;
 
 
@@ -192,17 +178,3 @@ void set_network_bytes_and_checksum(packet_t* pkt) {
   }
   pkt->cksum = cksum((void*)pkt, packet_length);
 }
-
-void send_ack_packet(rel_t* r) {
-  packet_t *pkt = (packet_t*) malloc(sizeof(packet_t));
-  pkt->len = ACK_PACKET_SIZE;
-  //TODO: set the correct ackno value.
-  pkt->ackno = 0;
-  pkt->cksum = 0;
-  
-  set_network_bytes_and_checksum(pkt);
-
-  print_pkt((void *)pkt, "ack", ACK_PACKET_SIZE); 
-  conn_sendpkt(r->c, pkt, ACK_PACKET_SIZE);
-}
-

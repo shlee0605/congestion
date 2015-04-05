@@ -1,3 +1,5 @@
+#ifndef __RLIB_H
+#define __RLIB_H
 #if DMALLOC
 #include <dmalloc.h>
 #endif /* DMALLOC */
@@ -308,3 +310,5 @@ int connect_to (int dgram, const struct sockaddr_storage *ss);
 #if NEED_CLOCK_GETTIME
 int clock_gettime (int, struct timespec *);
 #endif /* NEED_CLOCK_GETTIME */
+
+#endif /* __RLIB_H */
