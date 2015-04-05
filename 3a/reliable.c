@@ -103,7 +103,7 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
   //print_pkt (pkt, "recv", n);
   
   //add packet to receiver's slide window queue
-  conn_output(r->c, (void*) pkt->data, n);
+  conn_output(r->c, (void*) pkt->data, n-HEADER_SIZE);
 }
 
 
@@ -134,8 +134,8 @@ rel_read (rel_t *s)
     }
     else if(bytes_read > 0) {
       pkt_len = HEADER_SIZE + bytes_read;
-      memset(pkt->data, 0, 500);        
-      memcpy(pkt->data, buf, 500);
+      memset(pkt->data, 0, PAYLOAD_SIZE);        
+      memcpy(pkt->data, buf, PAYLOAD_SIZE);
     }  
 
     pkt->cksum = 0;
