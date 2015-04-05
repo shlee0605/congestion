@@ -45,7 +45,8 @@ void sw_recv_ack(const rel_t* p_rel, int ackno) {
   // that means we've successfully received 1~4 and we need 5 (TCP-style ACK).
 
   sw_t* p_sw = p_rel->sw_sender;
-  for (int i = p_sw->left + 1; i < ackno; ++i) {
+  int i;
+  for (i = p_sw->left + 1; i < ackno; ++i) {
     p_sw->sliding_window[i].ackno = (uint32_t) ackno; // TODO: should it be set to this?
   }
   p_sw->left = ackno - 1;

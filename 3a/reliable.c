@@ -193,7 +193,8 @@ void initialize_sw_info(const struct config_common *cc, sw_t* sliding) {
   sliding->left = -1;
   sliding->next_seqno = 0;
   sliding->right = 0;
-  for (int i = 0; i < SEQUENCE_SPACE_SIZE; ++i) {
+  int i;
+  for (i = 0; i < SEQUENCE_SPACE_SIZE; ++i) {
     sliding->sliding_window[i].ackno = UNACKED;
   }
 }
