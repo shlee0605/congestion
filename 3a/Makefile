@@ -34,7 +34,7 @@ all: reliable
 rlib.o reliable.o: rlib.h sliding_window.h
 
 reliable: reliable.o rlib.o sliding_window.o
-	$(CC) $(CFLAGS) -o $@ reliable.o rlib.o sliding_window.o $(LIBS) $(LIBRT)
+	$(CC) $(CFLAGS) -std=c99 -o $@ reliable.o rlib.o sliding_window.o $(LIBS) $(LIBRT)
 
 .PHONY: tester reference
 tester reference:

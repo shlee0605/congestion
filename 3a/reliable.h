@@ -28,4 +28,4 @@ void rel_output (rel_t *r);
 
 void rel_timer ();
 
-void set_network_bytes_and_checksum(packet_t* pkt);
+void set_network_bytes_and_checksum(packet_t* dst, const packet_t* src);
