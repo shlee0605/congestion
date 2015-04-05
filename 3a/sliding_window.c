@@ -64,7 +64,7 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
   // If SeqNum ≤ LFR or SeqNum > LAF,
   int lfr = p_sw->left;
   int laf = lfr + p_sw->w_size;
-  if (seq_num <= lfr && seq_num > laf) {
+  if (seq_num <= lfr || seq_num > laf) {
     // then the frame is outside the receiver’s window and it is discarded.
     return;
   }
