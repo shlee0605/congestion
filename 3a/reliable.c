@@ -190,8 +190,8 @@ void set_host_bytes(packet_t* pkt) {
 
 void initialize_sw_info(const struct config_common *cc, sw_t* sliding) {
   sliding->w_size = cc->window;
-  sliding->left = -1;
-  sliding->next_seqno = 0;
+  sliding->left = 0;
+  sliding->next_seqno = 1;
   sliding->right = sliding->left + sliding->w_size;
   int i;
   for (i = 0; i < SEQUENCE_SPACE_SIZE; ++i) {
