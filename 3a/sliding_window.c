@@ -92,6 +92,7 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
     // If the received packet *is* SeqNumToAck,
     // send an ACK for the highest received packet contiguous to SeqNumToAck.
     int highest_acked_packet = seq_num_to_ack;
+
     while (highest_acked_packet < SEQUENCE_SPACE_SIZE &&
         p_sw->sliding_window[highest_acked_packet].ackno != UNACKED) {
       highest_acked_packet += 1;
@@ -101,7 +102,11 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
     send_ack_packet(p_rel, (uint32_t) next_ackno);
     // It then updates LFR and LAF.
     p_sw->left = highest_acked_packet; // lfr
-    p_sw->right = p_sw->left + p_sw->w_size;  // laf
+    if(p_sw->left + p_sw->w_size < SEQUENCE_SPACE_SIZE) {
+      p_sw->right = p_sw->left + p_sw->w_size;  // laf
+    } else {
+      p_sw->right = SEQUENCE_SPACE_SIZE - 1;  //laf
+    }
   }
 }
 
