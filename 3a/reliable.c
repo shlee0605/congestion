@@ -46,7 +46,6 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
   r->sw_receiver = (sw_t*)malloc(sizeof(sw_t));
   initialize_sw_info(r->cc, r->sw_sender);
   initialize_sw_info(r->cc, r->sw_receiver);
-  r->last_written = 0;
   int i;
   for(i = 0; i < SEQUENCE_SPACE_SIZE; i ++) {
     r->written[i] = 0;
@@ -154,7 +153,6 @@ rel_read (rel_t *s)
     pkt.seqno = 0;
     pkt.len = (uint16_t) pkt_len;
 
-    check_buff_to_print(&(pkt.data));
     sw_send_packet(s, &pkt);
   }
 }
@@ -162,20 +160,13 @@ rel_read (rel_t *s)
 void
 rel_output (rel_t *r)
 {
-  int low = r->last_written+1;
   int high = r->sw_receiver->highest_acked_pkt;
-  int print_up_to = 0;
   int i;
-  for(i = low; i <= high; i++) {
-    if(check_buff_to_print(&(r->sw_receiver->sliding_window[i].data)) && r->written[i] == 0) {
-      print_up_to = i;
+  for(i = 1; i <= high; i++) {
+    if(r->written[i] == 0) {
+      conn_output(r->c, r->sw_receiver->sliding_window[i].data, r->sw_receiver->sliding_window[i].len - HEADER_SIZE); 
+      r->written[i] = 1;
     }
-  }
-  int j;
-  for(j = low+1; j <= print_up_to; j++ ) {
-    conn_output(r->c, r->sw_receiver->sliding_window[j].data, r->sw_receiver->sliding_window[j].len - HEADER_SIZE); 
-    r->written[j] = 1;
-    r->last_written = print_up_to;
   }
 }
 
