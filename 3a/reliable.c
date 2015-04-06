@@ -89,12 +89,12 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
   uint16_t new = cksum((void*)pkt, (int) n);
   set_host_bytes(pkt);
 
-  if(original == new && pkt->len == n) {
+  if(original == new) {
     if (pkt->len == ACK_PACKET_SIZE) {
       //DEBUG("it is an ACK packet\n");
       sw_recv_ack(r, pkt->ackno);
     }
-    if(original == new && pkt->len != ACK_PACKET_SIZE) {
+    if(pkt->len != ACK_PACKET_SIZE) {
       //DEBUG("it is a data packet\n");
       sw_recv_packet(r, pkt);
       rel_output(r);
