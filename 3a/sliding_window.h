@@ -2,7 +2,7 @@
 #define _CONGESTION_SLIDING_WINDOW_H_
 
 #define UNACKED INT32_MAX
-#define SEQUENCE_SPACE_SIZE 128
+#define SEQUENCE_SPACE_SIZE 512
 
 /*
 	sender side:
@@ -20,11 +20,12 @@
 		* LAF - LFR <= RWS
 */
 struct sliding_window_info {
-  packet_t sliding_window[128];
+  packet_t sliding_window[SEQUENCE_SPACE_SIZE];
   int w_size;
   int left;
   int next_seqno;
   int right;
+  int highest_acked_pkt;
 };
 typedef struct sliding_window_info sw_t;
 

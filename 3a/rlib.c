@@ -134,15 +134,15 @@ print_pkt (const packet_t *buf, const char *op, int n)
       DEBUG("%5d %s(%3d): %s\n", pid, op, n, strerror (errno));
   }
   else if (n == 8)
-    DEBUG("%5d %s(%3d): cksum = %04x, len = %04x, ack = %08x\n",
+    DEBUG("%5d %s(%3d): cksum = %04x, len = %04x, ack = %08x",
 	     pid, op, n, buf->cksum, ntohs (buf->len), ntohl (buf->ackno));
   else if (n >= 12)
     DEBUG(
-	     "%5d %s(%3d): cksum = %04x, len = %04x, ack = %08x, seq = %08x\n",
+	     "%5d %s(%3d): cksum = %04x, len = %04x, ack = %08x, seq = %08x",
 	     pid, op, n, buf->cksum, ntohs (buf->len), ntohl (buf->ackno),
 	     ntohl (buf->seqno));
   else
-    DEBUG("%5d %s(%3d):\n", pid, op, n);
+    DEBUG("%5d %s(%3d):", pid, op, n);
   errno = saved_errno;
 }
 

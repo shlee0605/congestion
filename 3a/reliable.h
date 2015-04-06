@@ -22,6 +22,7 @@ struct reliable_state {
     int file_eof; /* 1 - received eof, 0 - not received eof */
     sw_t* sw_sender;
     sw_t* sw_receiver;
+    int written[SEQUENCE_SPACE_SIZE];
 };
 
 void rel_destroy (rel_t *r);
