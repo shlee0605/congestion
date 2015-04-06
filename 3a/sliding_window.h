@@ -25,6 +25,7 @@ struct sliding_window_info {
   int left;
   int next_seqno;
   int right;
+  int highest_acked_pkt;
 };
 typedef struct sliding_window_info sw_t;
 

@@ -7,6 +7,7 @@
 void set_network_bytes_and_checksum(packet_t* dst, const packet_t* src);
 void set_host_bytes(packet_t* pkt);
 void initialize_sw_info(const struct config_common *cc, sw_t* sliding);
+int check_buff_to_print(char* buff);
 struct reliable_state;
 rel_t *rel_list;
 
@@ -45,6 +46,11 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
   r->sw_receiver = (sw_t*)malloc(sizeof(sw_t));
   initialize_sw_info(r->cc, r->sw_sender);
   initialize_sw_info(r->cc, r->sw_receiver);
+  r->last_written = 0;
+  int i;
+  for(i = 0; i < SEQUENCE_SPACE_SIZE; i ++) {
+    r->written[i] = 0;
+  } 
   return r;
 }
 
@@ -78,8 +84,7 @@ rel_demux (const struct config_common *cc,
 void
 rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
-  print_pkt (pkt, "new packet received", (int) n); // for debugging purposes
-
+  //print_pkt (pkt, "new packet received", (int) n); // for debugging purposes
   // check if the packet is valid using checksum.
   uint16_t original = pkt->cksum;
   pkt->cksum = 0;
@@ -94,7 +99,7 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
   if(original == new && pkt->len != ACK_PACKET_SIZE) {
     DEBUG("it is a data packet\n");
     sw_recv_packet(r, pkt);
-    conn_output(r->c, (void*) pkt->data, n-HEADER_SIZE); // this is just here for testing purposes (should be replaced after pr#14)
+    rel_output(r);
   }
 }
 
@@ -149,6 +154,7 @@ rel_read (rel_t *s)
     pkt.seqno = 0;
     pkt.len = (uint16_t) pkt_len;
 
+    check_buff_to_print(&(pkt.data));
     sw_send_packet(s, &pkt);
   }
 }
@@ -156,7 +162,21 @@ rel_read (rel_t *s)
 void
 rel_output (rel_t *r)
 {
-
+  int low = r->last_written+1;
+  int high = r->sw_receiver->highest_acked_pkt;
+  int print_up_to = 0;
+  int i;
+  for(i = low; i <= high; i++) {
+    if(check_buff_to_print(&(r->sw_receiver->sliding_window[i].data)) && r->written[i] == 0) {
+      print_up_to = i;
+    }
+  }
+  int j;
+  for(j = low+1; j <= print_up_to; j++ ) {
+    conn_output(r->c, r->sw_receiver->sliding_window[j].data, r->sw_receiver->sliding_window[j].len - HEADER_SIZE); 
+    r->written[j] = 1;
+    r->last_written = print_up_to;
+  }
 }
 
 void
@@ -197,4 +217,17 @@ void initialize_sw_info(const struct config_common *cc, sw_t* sliding) {
   for (i = 0; i < SEQUENCE_SPACE_SIZE; ++i) {
     sliding->sliding_window[i].ackno = UNACKED;
   }
+}
+
+int check_buff_to_print(char* buff) {
+  int result = 0;
+  char* chk = (char*) memchr(buff,'\0', 500);
+  if(chk != NULL) {
+    result = 1;
+    DEBUG("null terminator exists.\n");
+  }
+  else {
+    DEBUG("null terminator does not exist.\n");
+  }
+  return result;
 }
