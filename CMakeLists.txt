@@ -1,5 +1,8 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 3.0)
 project (congestion)
+
+set(CMAKE_C_FLAGS_RELEASE "-std=c99 -DNDEBUG")
+set(CMAKE_C_FLAGS_DEBUG "-std=c99")
 
 add_executable(congestion
     3a/reliable.c
@@ -8,12 +11,3 @@ add_executable(congestion
     3a/rlib.h
     3a/sliding_window.c
     3a/sliding_window.h)
-
-add_executable(sliding_window_test
-    3a/reliable.c
-    3a/reliable.h
-    3a/rlib.c
-    3a/rlib.h
-    3a/sliding_window.c
-    3a/sliding_window.h
-    3a/sliding_window_tests.c)
