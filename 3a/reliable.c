@@ -1,21 +1,10 @@
-
+#include "reliable.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <stddef.h>
-#include <assert.h>
-#include <poll.h>
-#include <errno.h>
-#include <time.h>
-#include <sys/time.h>
 #include <sys/socket.h>
-#include <sys/uio.h>
-#include <netinet/in.h>
 
-#include "reliable.h"
-
-void set_network_bytes_and_checksum(packet_t* pkt);
+void set_network_bytes_and_checksum(packet_t* dst, const packet_t* src);
 void set_host_bytes(packet_t* pkt);
 void initialize_sw_info(const struct config_common *cc, sw_t* sliding);
 struct reliable_state;
@@ -89,14 +78,22 @@ rel_demux (const struct config_common *cc,
 void
 rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
+  print_pkt (pkt, "new packet received", (int) n); // for debugging purposes
+
   // check if the packet is valid using checksum.
   uint16_t original = pkt->cksum;
   pkt->cksum = 0;
-  uint16_t new = cksum((void*)pkt, n);
+  uint16_t new = cksum((void*)pkt, (int) n);
   set_host_bytes(pkt);
 
-  if(original == new) {
-    // call sliding window algorithm
+  if (pkt->len == ACK_PACKET_SIZE) {
+    DEBUG("it is an ACK packet\n");
+    sw_recv_ack(r, pkt->ackno);
+  }
+
+  if(original == new && pkt->len != ACK_PACKET_SIZE) {
+    DEBUG("it is a data packet\n");
+    sw_recv_packet(r, pkt);
     conn_output(r->c, (void*) pkt->data, n-HEADER_SIZE); // this is just here for testing purposes (should be replaced after pr#14)
   }
 }
@@ -107,7 +104,7 @@ rel_read (rel_t *s)
   char buf[PAYLOAD_SIZE];
   //initialize a packet
   while(1) {
-      
+    memset(buf, 0, PAYLOAD_SIZE);
     // call conn_input to get the data to send in the packets
     int bytes_read = conn_input(s->c, buf, PAYLOAD_SIZE);
     
@@ -130,7 +127,7 @@ rel_read (rel_t *s)
       return;
     }
 
-    packet_t *pkt = (packet_t*)malloc(sizeof(packet_t));
+    packet_t pkt;
     int pkt_len = HEADER_SIZE; // This initialization means:
     // when an EOF is read in, send an EOF packet
     // (a packet that marks the end of a message).
@@ -143,28 +140,23 @@ rel_read (rel_t *s)
     }
     if(bytes_read > 0) {
       pkt_len += bytes_read;
-      memset(pkt->data, 0, PAYLOAD_SIZE);        
-      memcpy(pkt->data, buf, PAYLOAD_SIZE);
+      memset(pkt.data, 0, PAYLOAD_SIZE);
+      memcpy(pkt.data, buf, PAYLOAD_SIZE);
     }  
 
-    pkt->cksum = 0;
-    pkt->ackno = 0;
-    pkt->seqno = 0;
-    pkt->len = pkt_len;
+    pkt.cksum = 0;
+    pkt.ackno = 0;
+    pkt.seqno = 0;
+    pkt.len = (uint16_t) pkt_len;
 
-    // send packet to sliding window queue
-    set_network_bytes_and_checksum(pkt); 
-    //print_pkt (pkt, "send", pkt_len);
-    conn_sendpkt(s->c, pkt, pkt_len);
-
-    // packet needs to be freed after getting acknowledgement
+    sw_send_packet(s, &pkt);
   }
 }
 
 void
 rel_output (rel_t *r)
 {
-  
+
 }
 
 void
@@ -174,28 +166,35 @@ rel_timer ()
 
 }
 
-/* This function sets the packet in network byte order and calculates checksum.
-   This should be called before sending a packet (conn_sendpkt) */
-void set_network_bytes_and_checksum(packet_t* pkt) {
-  int packet_length = (int)pkt->len;
-  pkt->len = htons(pkt->len);
-  pkt->ackno = htonl(pkt->ackno);
+/// This function generates a new packet in network byte order
+/// and with the checksum calculated.
+/// It should be called before sending a packet (conn_sendpkt)
+void set_network_bytes_and_checksum(packet_t* dst, const packet_t* src) {
+  int packet_length = (int) src->len;
+  dst->len = htons(src->len);
+  dst->ackno = htonl(src->ackno);
   if(packet_length != ACK_PACKET_SIZE) {
-    pkt->seqno = htonl(pkt->seqno);
+    dst->seqno = htonl(src->seqno);
   }
-  pkt->cksum = cksum((void*)pkt, packet_length);
+  memset(dst->data, 0, PAYLOAD_SIZE);
+  memcpy(dst->data, src->data, PAYLOAD_SIZE);
+  dst->cksum = 0;
+  dst->cksum = cksum((void*) dst, src->len);
 }
 
 void set_host_bytes(packet_t* pkt) {
   pkt->len = ntohs(pkt->len);
   pkt->ackno = ntohl(pkt->ackno);
-  if(pkt->len != ACK_PACKET_SIZE) {
-    pkt->seqno = ntohl(pkt->seqno);
-  }
+  pkt->seqno = ntohl(pkt->seqno);
 }
 
 void initialize_sw_info(const struct config_common *cc, sw_t* sliding) {
   sliding->w_size = cc->window;
   sliding->left = 0;
-  sliding->right = 0;
+  sliding->next_seqno = 1;
+  sliding->right = sliding->left + sliding->w_size;
+  int i;
+  for (i = 0; i < SEQUENCE_SPACE_SIZE; ++i) {
+    sliding->sliding_window[i].ackno = UNACKED;
+  }
 }
