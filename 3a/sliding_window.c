@@ -1,13 +1,16 @@
 #include <assert.h>
 #include "reliable.h"
 #include <string.h>
+#include <time.h>
 
 void check_receiver_invariant(const sw_t* p_sw);
 void check_sender_invariant(const sw_t* p_sw);
+uint64_t get_cur_time_ms();
 void send_ack_packet(const rel_t* r, uint32_t ackno);
 void sw_recv_ack(const rel_t* p_rel, int seq_to_ack);
 void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet);
 void sw_send_packet(const rel_t* p_rel, const packet_t* p_packet);
+int sw_should_sender_slot_resend(const rel_t* p_rel, int slot_idx);
 
 void check_receiver_invariant(const sw_t* p_sw) {
   int laf_idx = p_sw->right;
@@ -21,6 +24,10 @@ void check_sender_invariant(const sw_t* p_sw) {
   int lar_idx = p_sw->left;
   int window_size = p_sw->w_size;
   assert(lfs_idx - lar_idx <= window_size);
+}
+
+uint64_t get_cur_time_ms() {
+  return clock() / (CLOCKS_PER_SEC * 1000);
 }
 
 void send_ack_packet(const rel_t* r, uint32_t ackno) {
@@ -124,9 +131,24 @@ void sw_send_packet(const rel_t* p_rel, const packet_t* p_packet) {
   set_network_bytes_and_checksum(&network_ready_packet, &packet_with_new_seqno);
   p_sw->next_seqno += 1;
 
+  p_sw->slot_timestamps_ms[packet_with_new_seqno.seqno] = get_cur_time_ms();
+
   print_pkt (&network_ready_packet, "sending", p_packet->len); // for debugging
   conn_sendpkt(p_rel->c, &network_ready_packet, p_packet->len);
   // Also, the sender associates a timer with each frame it transmits,
   // and it retransmits the frame should the timer expire before an ACK is received.
   // TODO
+}
+
+int sw_should_sender_slot_resend(const rel_t* p_rel, int slot_idx) {
+  sw_t* p_sw = p_rel->sw_sender;
+  int timeout = p_rel->cc->timeout;
+  uint64_t cur_time_ms = get_cur_time_ms();
+  if (cur_time_ms - p_sw->slot_timestamps_ms[slot_idx] > timeout) {
+    packet_t* p_packet = &(p_sw->sliding_window[slot_idx]);
+    if (p_packet->ackno == UNACKED) {
+      return 1;
+    }
+  }
+  return 0;
 }
