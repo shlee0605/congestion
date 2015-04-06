@@ -7,7 +7,6 @@
 void set_network_bytes_and_checksum(packet_t* dst, const packet_t* src);
 void set_host_bytes(packet_t* pkt);
 void initialize_sw_info(const struct config_common *cc, sw_t* sliding);
-int check_buff_to_print(char* buff);
 struct reliable_state;
 rel_t *rel_list;
 
@@ -217,17 +216,4 @@ void initialize_sw_info(const struct config_common *cc, sw_t* sliding) {
   for (i = 0; i < SEQUENCE_SPACE_SIZE; ++i) {
     sliding->sliding_window[i].ackno = UNACKED;
   }
-}
-
-int check_buff_to_print(char* buff) {
-  int result = 0;
-  char* chk = (char*) memchr(buff,'\0', 500);
-  if(chk != NULL) {
-    result = 1;
-    DEBUG("null terminator exists.\n");
-  }
-  else {
-    DEBUG("null terminator does not exist.\n");
-  }
-  return result;
 }
