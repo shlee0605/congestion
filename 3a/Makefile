@@ -1,4 +1,4 @@
-
+DEBUG_MODE = no
 
 # Debug malloc support (http://dmalloc.com).  Comment out if you don't
 # have dmalloc, but it is highly recommended.
@@ -23,7 +23,13 @@ else
 endif
 
 CC = gcc
-CFLAGS = -g -Wall $(DMALLOC_CFLAGS)
+CFLAGS_RELEASE = -g -Wall $(DMALLOC_CFLAGS) -DNDEBUG
+CFLAGS_DEBUG = -g -Wall $(DMALLOC_CFLAGS)
+ifeq ($(DEBUG_MODE), yes)
+	CFLAGS = $(CFLAGS_DEBUG)
+else
+	CFLAGS = $(CFLAGS_RELEASE)
+endif
 LIBS = $(DMALLOC_LIBS)
 
 all: reliable
@@ -31,10 +37,10 @@ all: reliable
 .c.o:
 	$(CC) $(CFLAGS) -c $<
 
-rlib.o reliable.o: rlib.h
+rlib.o reliable.o: rlib.h sliding_window.h
 
-reliable: reliable.o rlib.o
-	$(CC) $(CFLAGS) -o $@ reliable.o rlib.o $(LIBS) $(LIBRT)
+reliable: reliable.o rlib.o sliding_window.o
+	$(CC) $(CFLAGS) -std=c99 -o $@ reliable.o rlib.o sliding_window.o $(LIBS) $(LIBRT)
 
 .PHONY: tester reference
 tester reference:
