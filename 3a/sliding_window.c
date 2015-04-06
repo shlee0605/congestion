@@ -105,7 +105,7 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
     if(p_sw->left + p_sw->w_size < SEQUENCE_SPACE_SIZE) {
       p_sw->right = p_sw->left + p_sw->w_size;  // laf
     } else {
-      p_sw->right = p_sw->left + (SEQUENCE_SPACE_SIZE - p_sw->left) - 1;  //laf
+      p_sw->right = SEQUENCE_SPACE_SIZE - 1;  //laf
     }
   }
 }
