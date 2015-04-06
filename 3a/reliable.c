@@ -83,22 +83,26 @@ rel_demux (const struct config_common *cc,
 void
 rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
-  //print_pkt (pkt, "new packet received", (int) n); // for debugging purposes
+  print_pkt (pkt, "new packet received", (int) n); // for debugging purposes
   // check if the packet is valid using checksum.
   uint16_t original = pkt->cksum;
   pkt->cksum = 0;
   uint16_t new = cksum((void*)pkt, (int) n);
   set_host_bytes(pkt);
 
-  if (pkt->len == ACK_PACKET_SIZE) {
-    DEBUG("it is an ACK packet\n");
-    sw_recv_ack(r, pkt->ackno);
+  if(original == new && pkt->len == n) {
+    if (pkt->len == ACK_PACKET_SIZE) {
+      //DEBUG("it is an ACK packet\n");
+      sw_recv_ack(r, pkt->ackno);
+    }
+    if(original == new && pkt->len != ACK_PACKET_SIZE) {
+      //DEBUG("it is a data packet\n");
+      sw_recv_packet(r, pkt);
+      rel_output(r);
+    }
   }
-
-  if(original == new && pkt->len != ACK_PACKET_SIZE) {
-    DEBUG("it is a data packet\n");
-    sw_recv_packet(r, pkt);
-    rel_output(r);
+  else {
+    DEBUG("pkt dropped");
   }
 }
 
@@ -164,9 +168,14 @@ rel_output (rel_t *r)
   int i;
   for(i = 1; i <= high; i++) {
     if(r->written[i] == 0) {
-      conn_output(r->c, r->sw_receiver->sliding_window[i].data, r->sw_receiver->sliding_window[i].len - HEADER_SIZE); 
+      packet_t* pkt = &(r->sw_receiver->sliding_window[i]);
+      conn_output(r->c, pkt->data, pkt->len - HEADER_SIZE); 
       r->written[i] = 1;
-    }
+      //the following lines are for debug purpose
+      packet_t pkt_to_print;
+      set_network_bytes_and_checksum(&pkt_to_print, pkt); 
+      print_pkt(&pkt_to_print, "print to stdout", pkt->len);
+    }  
   }
 }
 
