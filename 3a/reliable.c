@@ -45,6 +45,10 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
   r->sw_receiver = (sw_t*)malloc(sizeof(sw_t));
   initialize_sw_info(r->cc, r->sw_sender);
   initialize_sw_info(r->cc, r->sw_receiver);
+  int i;
+  for(i = 0; i < SEQUENCE_SPACE_SIZE; i ++) {
+    r->written[i] = 0;
+  } 
   return r;
 }
 
@@ -79,22 +83,25 @@ void
 rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 {
   print_pkt (pkt, "new packet received", (int) n); // for debugging purposes
-
   // check if the packet is valid using checksum.
   uint16_t original = pkt->cksum;
   pkt->cksum = 0;
   uint16_t new = cksum((void*)pkt, (int) n);
   set_host_bytes(pkt);
 
-  if (pkt->len == ACK_PACKET_SIZE) {
-    DEBUG("it is an ACK packet\n");
-    sw_recv_ack(r, pkt->ackno);
+  if(original == new) {
+    if (pkt->len == ACK_PACKET_SIZE) {
+      DEBUG("it is an ACK packet\n");
+      sw_recv_ack(r, pkt->ackno);
+    }
+    if(pkt->len != ACK_PACKET_SIZE) {
+      DEBUG("it is a data packet\n");
+      sw_recv_packet(r, pkt);
+      rel_output(r);
+    }
   }
-
-  if(original == new && pkt->len != ACK_PACKET_SIZE) {
-    DEBUG("it is a data packet\n");
-    sw_recv_packet(r, pkt);
-    conn_output(r->c, (void*) pkt->data, n-HEADER_SIZE); // this is just here for testing purposes (should be replaced after pr#14)
+  else {
+    DEBUG("pkt dropped");
   }
 }
 
@@ -156,7 +163,19 @@ rel_read (rel_t *s)
 void
 rel_output (rel_t *r)
 {
-
+  int high = r->sw_receiver->highest_acked_pkt;
+  int i;
+  for(i = 1; i <= high; i++) {
+    if(r->written[i] == 0) {
+      packet_t* pkt = &(r->sw_receiver->sliding_window[i]);
+      conn_output(r->c, pkt->data, pkt->len - HEADER_SIZE); 
+      r->written[i] = 1;
+      //the following lines are for debug purpose
+      packet_t pkt_to_print;
+      set_network_bytes_and_checksum(&pkt_to_print, pkt); 
+      print_pkt(&pkt_to_print, "print to stdout", pkt->len);
+    }  
+  }
 }
 
 void

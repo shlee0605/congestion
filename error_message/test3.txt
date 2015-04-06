@@ -1,0 +1,7 @@
+TEST  3:  Ping-pong with test for excessive retransmissions...        [listening on UDP port 43705]
+[listening on UDP port 53773]
+[DEBUG] rlib.c:143: 16649 sending( 16): cksum = ab8d, len = 0010, ack = 00000000, seq = 00000001
+tester: lineI: end of file
+tester: lineI: end of file
+tester: headLI: end of file
+FAILED
