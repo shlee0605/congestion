@@ -146,6 +146,7 @@ void sw_send_window(const rel_t* p_rel) {
   sw_t *p_sw = p_rel->sw_sender;
   int *is_slot_sent = p_rel->sw_sender->is_slot_sent;
   int i;
+  DEBUG("sw_send_window: p_sw->left=%d", p_sw->left);
   for (i = p_sw->left + 1; i <= p_sw->left + p_sw->w_size; ++i) {
     packet_t *p_packet = &(p_sw->sliding_window[i]);
     DEBUG("sw_send_window: i=%d is_slot_sent[i]=%d p_packet->seqno=%d", i, is_slot_sent[i], p_packet->seqno);
