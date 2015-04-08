@@ -125,7 +125,7 @@ void sw_send_packet(const rel_t* p_rel, const packet_t* p_packet) {
   sw_t* p_sw = p_rel->sw_sender;
   DEBUG("Checking invariant before the sliding windows sends a packet out...");
   DEBUG("left=%d right=%d w_size=%d", p_sw->left, p_sw->right, p_sw->w_size);
-  if (p_sw->right - p_sw->left > p_sw->w_size) {
+  if ((p_sw->right + 1) - p_sw->left > p_sw->w_size) {
     DEBUG("Sending the packet will cause an invariant violation, not sending.");
     // Whenever a packet is sent out, p_sw->right will be incremented.
     // If this will cause an invariant violation,
