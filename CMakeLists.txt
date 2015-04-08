@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.0)
 project (congestion)
 
 set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG")
-set(CMAKE_C_FLAGS_DEBUG "")
+set(CMAKE_C_FLAGS_DEBUG "-ggdb")
 
 add_executable(congestion
     3a/reliable.c
