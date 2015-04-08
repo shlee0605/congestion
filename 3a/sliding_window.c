@@ -1,6 +1,8 @@
 #include <assert.h>
 #include "reliable.h"
 #include <string.h>
+// stdio.h is used by DEBUG macros
+#include <stdio.h>
 #include <time.h>
 
 void check_receiver_invariant(const sw_t* p_sw);
