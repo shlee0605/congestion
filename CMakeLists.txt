@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.0)
 project (congestion)
 
 set(CMAKE_C_FLAGS_RELEASE "-std=c99 -DNDEBUG")
-set(CMAKE_C_FLAGS_DEBUG "-std=c99")
+set(CMAKE_C_FLAGS_DEBUG "-std=c99 -ggdb")
 
 add_executable(congestion
     3a/reliable.c
