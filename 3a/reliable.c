@@ -183,10 +183,14 @@ rel_timer ()
   /* Retransmit any packets that need to be retransmitted */
   sw_t* p_sw = rel_list->sw_sender;
   int slot_idx;
-  for (slot_idx = p_sw->left + 1; slot_idx < p_sw->right; ++slot_idx) {
+  for (slot_idx = p_sw->left + 1; slot_idx <= p_sw->right; ++slot_idx) {
     if (sw_should_sender_slot_resend(rel_list, slot_idx)) {
+      //fprintf(stderr, "%d\n", slot_idx);
       packet_t* p_packet = &(p_sw->sliding_window[slot_idx]);
-      conn_sendpkt(rel_list->c, p_packet, p_packet->len); // resend
+      packet_t pkt_to_send;
+      set_network_bytes_and_checksum(&pkt_to_send, p_packet); 
+      print_pkt(&pkt_to_send, "retransmission", p_packet->len);
+      conn_sendpkt(rel_list->c, &pkt_to_send, p_packet->len); // resend
       p_sw->slot_timestamps_ms[slot_idx] = get_cur_time_ms(); // update timer
     }
   }

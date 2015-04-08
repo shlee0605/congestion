@@ -8,9 +8,9 @@
 	sender side:
  		sliding_window: packets that have been sent out, stored in HOST byte order
 		w_size = sender window size (SWS)
-		left = last frame sent (LFS)
+		left = last acknowledgement recieved (LAR)
 		next_seqno = seqno to be assigned to the next packet to be transmitted
-		right = last acknowledgement recieved (LAR)
+		right = last frame sent (LFS)
 		slot_timestamps_ms = each n-th slot means the timestamp of when sliding_window[n] was sent out last
 		* LFS - LAR <= SWS
 
