@@ -50,6 +50,8 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
   for(i = 0; i < SEQUENCE_SPACE_SIZE; i ++) {
     r->written[i] = 0;
   }
+  r->eof_ack_received = 0;
+  r->eof_received = 0;
   return r;
 }
 
@@ -93,9 +95,20 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
   if(original == new) {
     if (pkt->len == ACK_PACKET_SIZE) {
       DEBUG("it is an ACK packet with ackno=%d", pkt->ackno);
+      if(pkt->seqno == EOF_ACK_TAG) {
+        r->eof_ack_received = 1;
+      }
       sw_recv_ack(r, pkt->ackno);
+      if(r->eof_ack_received == 1) {
+        if(check_all_acks_received() == 1) {
+          r->all_acks_received = 1;
+        }
+      }
     } else {
       DEBUG("it is a data packet");
+      if(pkt->len == 12) {
+        r->eof_received = 1;
+      }
       sw_recv_packet(r, pkt);
       rel_output(r);
     }
@@ -169,6 +182,10 @@ rel_output (rel_t *r)
   for(i = 1; i <= high; i++) {
     if(r->written[i] == 0) {
       packet_t* pkt = &(r->sw_receiver->sliding_window[i]);
+      if(r->eof_ack_received == 1 && r->eof_received == 1) {
+        conn_output(r->c, NULL, 0);
+        r->written[i];
+      }
       conn_output(r->c, pkt->data, pkt->len - HEADER_SIZE);
       r->written[i] = 1;
       //the following lines are for debug purpose

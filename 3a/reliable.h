@@ -10,7 +10,7 @@
 #define HEADER_SIZE 12
 #define PAYLOAD_SIZE 500
 #define ACK_PACKET_SIZE 8
-
+#define EOF_ACK_TAG 999
 struct reliable_state {
     rel_t *next;			/* Linked list for traversing all connections */
     rel_t **prev;
@@ -23,6 +23,8 @@ struct reliable_state {
     sw_t* sw_sender;
     sw_t* sw_receiver;
     int written[SEQUENCE_SPACE_SIZE];
+    int eof_ack_received;
+    int eof_received;
 };
 
 void rel_destroy (rel_t *r);

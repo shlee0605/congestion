@@ -8,7 +8,7 @@
 void check_receiver_invariant(const sw_t* p_sw);
 void check_sender_invariant(const sw_t* p_sw);
 uint64_t get_cur_time_ms();
-void send_ack_packet(const rel_t* r, uint32_t ackno);
+void send_ack_packet(const rel_t* r, uint32_t ackno, int is_eof_ack);
 void sw_recv_ack(const rel_t* p_rel, int seq_to_ack);
 void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet);
 void sw_send_window(const rel_t* p_rel);
@@ -33,7 +33,7 @@ uint64_t get_cur_time_ms() {
   return (clock() / CLOCKS_PER_SEC) * 1000;
 }
 
-void send_ack_packet(const rel_t* r, uint32_t ackno) {
+void send_ack_packet(const rel_t* r, uint32_t ackno, int is_eof_ack) {
   // If we send ACK packet with ackno=5,
   // that means we've successfully received 1~4 and we need 5 (TCP-style ACK).
 
@@ -41,8 +41,11 @@ void send_ack_packet(const rel_t* r, uint32_t ackno) {
   pkt.len = ACK_PACKET_SIZE;
   pkt.ackno = ackno;
   pkt.cksum = 0;
-  pkt.seqno = 0;
-
+  if(is_eof_ack == 1) {
+    pkt.seqno = EOF_ACK_TAG;
+  } else{
+    pkt.seqno = 0;
+  }
   packet_t processed_pkt;
   set_network_bytes_and_checksum(&processed_pkt, &pkt);
 
@@ -113,8 +116,13 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
     highest_acked_packet -= 1;
     int next_ackno = highest_acked_packet + 1;
     p_sw->highest_acked_pkt = highest_acked_packet;
+
     DEBUG("next_ackno: %d, highest_ack_pkt=%d", next_ackno, p_sw->highest_acked_pkt);
-    send_ack_packet(p_rel, (uint32_t) next_ackno);
+    if(p_slot->len == 12) {
+      send_ack_packet(p_rel, (uint32_t) next_ackno, 1);
+    } else {
+      send_ack_packet(p_rel, (uint32_t) next_ackno, 0);
+    }
     // It then updates LFR and LAF.
     p_sw->left = highest_acked_packet; // lfr
     if(p_sw->left + p_sw->w_size < SEQUENCE_SPACE_SIZE) {
