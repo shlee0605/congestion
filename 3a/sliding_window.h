@@ -6,6 +6,7 @@
 
 /*
 	sender side:
+ 		sliding_window: packets that have been sent out, stored in HOST byte order
 		w_size = sender window size (SWS)
 		left = last frame sent (LFS)
 		next_seqno = seqno to be assigned to the next packet to be transmitted
@@ -14,6 +15,7 @@
 		* LFS - LAR <= SWS
 
 	receiver side:
+ 		sliding_window: packets that have been received, stored in HOST byte order
 		w_size = receive window size (RWS)
 		left = largest acceptable frame (LAF)
 		next_seqno = not used

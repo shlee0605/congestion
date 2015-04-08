@@ -122,23 +122,20 @@ void sw_send_packet(const rel_t* p_rel, const packet_t* p_packet) {
   sw_t* p_sw = p_rel->sw_sender;
   check_sender_invariant(p_sw);
 
-  packet_t packet_with_new_seqno;
-  packet_with_new_seqno.seqno = (uint32_t) p_sw->next_seqno;
-  packet_with_new_seqno.ackno = p_packet->ackno;
-  packet_with_new_seqno.cksum = p_packet->cksum;
-  packet_with_new_seqno.len = p_packet->len;
-  memcpy(packet_with_new_seqno.data, p_packet->data, PAYLOAD_SIZE);
+  packet_t* p_new_packet_in_sw = &(p_sw->sliding_window[p_sw->next_seqno]);
+  p_new_packet_in_sw->seqno = (uint32_t) p_sw->next_seqno;
+  p_new_packet_in_sw->ackno = p_packet->ackno;
+  p_new_packet_in_sw->cksum = p_packet->cksum;
+  p_new_packet_in_sw->len = p_packet->len;
+  memcpy(p_new_packet_in_sw->data, p_packet->data, PAYLOAD_SIZE);
   packet_t network_ready_packet;
-  set_network_bytes_and_checksum(&network_ready_packet, &packet_with_new_seqno);
+  set_network_bytes_and_checksum(&network_ready_packet, p_new_packet_in_sw);
   p_sw->next_seqno += 1;
 
-  p_sw->slot_timestamps_ms[packet_with_new_seqno.seqno] = get_cur_time_ms();
+  p_sw->slot_timestamps_ms[p_new_packet_in_sw->seqno] = get_cur_time_ms();
 
   print_pkt (&network_ready_packet, "sending", p_packet->len); // for debugging
   conn_sendpkt(p_rel->c, &network_ready_packet, p_packet->len);
-  // Also, the sender associates a timer with each frame it transmits,
-  // and it retransmits the frame should the timer expire before an ACK is received.
-  // TODO
 }
 
 int sw_should_sender_slot_resend(const rel_t* p_rel, int slot_idx) {
