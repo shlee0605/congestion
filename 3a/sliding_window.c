@@ -2,6 +2,7 @@
 #include "reliable.h"
 #include <string.h>
 #include <time.h>
+#include <stdio.h>
 
 void check_receiver_invariant(const sw_t* p_sw);
 void check_sender_invariant(const sw_t* p_sw);
@@ -27,7 +28,8 @@ void check_sender_invariant(const sw_t* p_sw) {
 }
 
 uint64_t get_cur_time_ms() {
-  return clock() / (CLOCKS_PER_SEC * 1000);
+  uint64_t result = ((double) clock() / CLOCKS_PER_SEC) * 1000;
+  return result;
 }
 
 void send_ack_packet(const rel_t* r, uint32_t ackno) {
