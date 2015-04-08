@@ -6,7 +6,8 @@
 
 void set_network_bytes_and_checksum(packet_t* dst, const packet_t* src);
 void set_host_bytes(packet_t* pkt);
-void initialize_sw_info(const struct config_common *cc, sw_t* sliding);
+void initialize_receiver_sw_info(const struct config_common *cc, sw_t* sliding);
+void initialize_sender_sw_info(const struct config_common *cc, sw_t* sliding);
 struct reliable_state;
 rel_t *rel_list;
 
@@ -43,12 +44,12 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
   r->file_eof = 0;
   r->sw_sender = (sw_t*)malloc(sizeof(sw_t));
   r->sw_receiver = (sw_t*)malloc(sizeof(sw_t));
-  initialize_sw_info(r->cc, r->sw_sender);
-  initialize_sw_info(r->cc, r->sw_receiver);
+  initialize_sender_sw_info(r->cc, r->sw_sender);
+  initialize_receiver_sw_info(r->cc, r->sw_receiver);
   int i;
   for(i = 0; i < SEQUENCE_SPACE_SIZE; i ++) {
     r->written[i] = 0;
-  } 
+  }
   return r;
 }
 
@@ -113,7 +114,7 @@ rel_read (rel_t *s)
     memset(buf, 0, PAYLOAD_SIZE);
     // call conn_input to get the data to send in the packets
     int bytes_read = conn_input(s->c, buf, PAYLOAD_SIZE);
-    
+
     // no data is available
     if(bytes_read == 0 || (bytes_read == -1 && s->file_eof == 1)) {
       // When a keyboard input is pushed into stdin,
@@ -148,7 +149,7 @@ rel_read (rel_t *s)
       pkt_len += bytes_read;
       memset(pkt.data, 0, PAYLOAD_SIZE);
       memcpy(pkt.data, buf, PAYLOAD_SIZE);
-    }  
+    }
 
     pkt.cksum = 0;
     pkt.ackno = 0;
@@ -167,13 +168,13 @@ rel_output (rel_t *r)
   for(i = 1; i <= high; i++) {
     if(r->written[i] == 0) {
       packet_t* pkt = &(r->sw_receiver->sliding_window[i]);
-      conn_output(r->c, pkt->data, pkt->len - HEADER_SIZE); 
+      conn_output(r->c, pkt->data, pkt->len - HEADER_SIZE);
       r->written[i] = 1;
       //the following lines are for debug purpose
       packet_t pkt_to_print;
-      set_network_bytes_and_checksum(&pkt_to_print, pkt); 
+      set_network_bytes_and_checksum(&pkt_to_print, pkt);
       print_pkt(&pkt_to_print, "print to stdout", pkt->len);
-    }  
+    }
   }
 }
 
@@ -183,12 +184,12 @@ rel_timer ()
   /* Retransmit any packets that need to be retransmitted */
   sw_t* p_sw = rel_list->sw_sender;
   int slot_idx;
-  for (slot_idx = p_sw->left + 1; slot_idx <= p_sw->right; ++slot_idx) {
+  for (slot_idx = 1; slot_idx <= p_sw->right; ++slot_idx) {
     if (sw_should_sender_slot_resend(rel_list, slot_idx)) {
-      //fprintf(stderr, "%d\n", slot_idx);
+      DEBUG("rel_timer: slot_idx=%d left=%d right=%d", slot_idx, p_sw->left, p_sw->right);
       packet_t* p_packet = &(p_sw->sliding_window[slot_idx]);
       packet_t pkt_to_send;
-      set_network_bytes_and_checksum(&pkt_to_send, p_packet); 
+      set_network_bytes_and_checksum(&pkt_to_send, p_packet);
       print_pkt(&pkt_to_send, "retransmission", p_packet->len);
       conn_sendpkt(rel_list->c, &pkt_to_send, p_packet->len); // resend
       p_sw->slot_timestamps_ms[slot_idx] = get_cur_time_ms(); // update timer
@@ -218,11 +219,22 @@ void set_host_bytes(packet_t* pkt) {
   pkt->seqno = ntohl(pkt->seqno);
 }
 
-void initialize_sw_info(const struct config_common *cc, sw_t* sliding) {
+void initialize_receiver_sw_info(const struct config_common *cc, sw_t* sliding) {
   sliding->w_size = cc->window;
   sliding->left = 0;
   sliding->next_seqno = 1;
   sliding->right = sliding->left + sliding->w_size;
+  int i;
+  for (i = 0; i < SEQUENCE_SPACE_SIZE; ++i) {
+    sliding->sliding_window[i].ackno = UNACKED;
+  }
+}
+
+void initialize_sender_sw_info(const struct config_common *cc, sw_t* sliding) {
+  sliding->w_size = cc->window;
+  sliding->left = 0;
+  sliding->next_seqno = 1;
+  sliding->right = 0;
   int i;
   for (i = 0; i < SEQUENCE_SPACE_SIZE; ++i) {
     sliding->sliding_window[i].ackno = UNACKED;

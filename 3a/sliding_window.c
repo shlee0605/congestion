@@ -59,7 +59,7 @@ void sw_recv_ack(const rel_t* p_rel, int ackno) {
     p_sw->sliding_window[i].ackno = (uint32_t) ackno; // TODO: should it be set to this?
   }
   p_sw->left = ackno - 1;
-  p_sw->right = p_sw->left + p_sw->w_size;
+  // p_sw->right should not be updated here (it is updated in sw_send_packet)
 }
 
 void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
@@ -122,7 +122,17 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
 
 void sw_send_packet(const rel_t* p_rel, const packet_t* p_packet) {
   sw_t* p_sw = p_rel->sw_sender;
+  DEBUG("Checking invariant before the sliding windows sends a packet out...");
+  DEBUG("left=%d right=%d w_size=%d", p_sw->left, p_sw->right, p_sw->w_size);
   check_sender_invariant(p_sw);
+
+  if (p_sw->right - p_sw->left > p_sw->w_size) {
+    DEBUG("Sending the packet will cause an invariant violation, not sending.");
+    // Whenever a packet is sent out, p_sw->right will be incremented.
+    // If this will cause an invariant violation,
+    // do not send the packet.
+    return;
+  }
 
   packet_t* p_new_packet_in_sw = &(p_sw->sliding_window[p_sw->next_seqno]);
   p_new_packet_in_sw->seqno = (uint32_t) p_sw->next_seqno;
@@ -138,6 +148,13 @@ void sw_send_packet(const rel_t* p_rel, const packet_t* p_packet) {
 
   print_pkt (&network_ready_packet, "sending", p_packet->len); // for debugging
   conn_sendpkt(p_rel->c, &network_ready_packet, p_packet->len);
+  if (p_sw->right < SEQUENCE_SPACE_SIZE - 1) {
+    p_sw->right += 1;
+  } else {
+    p_sw->right = SEQUENCE_SPACE_SIZE - 1;
+  }
+  p_new_packet_in_sw->ackno = UNACKED;
+  // p_sw->left should not be updated here (it is updated in sw_recv_ack)
 }
 
 int sw_should_sender_slot_resend(const rel_t* p_rel, int slot_idx) {
