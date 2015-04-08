@@ -91,11 +91,10 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 
   if(original == new) {
     if (pkt->len == ACK_PACKET_SIZE) {
-      DEBUG("it is an ACK packet\n");
+      DEBUG("it is an ACK packet");
       sw_recv_ack(r, pkt->ackno);
-    }
-    if(pkt->len != ACK_PACKET_SIZE) {
-      DEBUG("it is a data packet\n");
+    } else {
+      DEBUG("it is a data packet");
       sw_recv_packet(r, pkt);
       rel_output(r);
     }
