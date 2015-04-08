@@ -128,11 +128,15 @@ void sw_store_packet(const rel_t* p_rel, const packet_t* p_packet) {
   sw_t *p_sw = p_rel->sw_sender;
 
   packet_t *p_new_packet_in_sw = &(p_sw->sliding_window[p_sw->next_seqno]);
+  DEBUG("sw_store_packet: p_sw->next_seqno=%d", p_sw->next_seqno);
   p_new_packet_in_sw->seqno = (uint32_t) p_sw->next_seqno;
   p_new_packet_in_sw->ackno = p_packet->ackno;
   p_new_packet_in_sw->cksum = p_packet->cksum;
   p_new_packet_in_sw->len = p_packet->len;
   memcpy(p_new_packet_in_sw->data, p_packet->data, PAYLOAD_SIZE);
+
+  DEBUG("Packet has been stored (len=%d seqno=%d)", p_new_packet_in_sw->len, p_new_packet_in_sw->seqno);
+  p_sw->next_seqno += 1;
 }
 
 /// This function sends all packets within the current window
@@ -144,12 +148,11 @@ void sw_send_window(const rel_t* p_rel) {
   int i;
   for (i = p_sw->left + 1; i <= p_sw->left + p_sw->w_size; ++i) {
     packet_t *p_packet = &(p_sw->sliding_window[i]);
-    DEBUG("sw_send_window: is_slot_sent[i]=%d p_packet->seqno=%d", is_slot_sent[i], p_packet->seqno);
+    DEBUG("sw_send_window: i=%d is_slot_sent[i]=%d p_packet->seqno=%d", i, is_slot_sent[i], p_packet->seqno);
     if (!is_slot_sent[i] && p_packet->seqno == i) {
       // if the slot is initialized with a packet not yet sent
       packet_t network_ready_packet;
       set_network_bytes_and_checksum(&network_ready_packet, p_packet);
-      p_sw->next_seqno += 1;
       p_sw->slot_timestamps_ms[p_packet->seqno] = get_cur_time_ms();
       DEBUG("Sending packet #%d", i);
       print_pkt(&network_ready_packet, "sending", p_packet->len); // for debugging
