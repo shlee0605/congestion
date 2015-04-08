@@ -1,13 +1,19 @@
 #include <assert.h>
 #include "reliable.h"
 #include <string.h>
+// stdio.h is used by DEBUG macros
+#include <stdio.h>
+#include <time.h>
 
 void check_receiver_invariant(const sw_t* p_sw);
 void check_sender_invariant(const sw_t* p_sw);
+uint64_t get_cur_time_ms();
 void send_ack_packet(const rel_t* r, uint32_t ackno);
 void sw_recv_ack(const rel_t* p_rel, int seq_to_ack);
 void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet);
-void sw_send_packet(const rel_t* p_rel, const packet_t* p_packet);
+void sw_send_window(const rel_t* p_rel);
+void sw_store_packet(const rel_t* p_rel, const packet_t* p_packet);
+int sw_should_sender_slot_resend(const rel_t* p_rel, int slot_idx);
 
 void check_receiver_invariant(const sw_t* p_sw) {
   int laf_idx = p_sw->right;
@@ -21,6 +27,10 @@ void check_sender_invariant(const sw_t* p_sw) {
   int lar_idx = p_sw->left;
   int window_size = p_sw->w_size;
   assert(lfs_idx - lar_idx <= window_size);
+}
+
+uint64_t get_cur_time_ms() {
+  return (clock() / CLOCKS_PER_SEC) * 1000;
 }
 
 void send_ack_packet(const rel_t* r, uint32_t ackno) {
@@ -50,7 +60,10 @@ void sw_recv_ack(const rel_t* p_rel, int ackno) {
     p_sw->sliding_window[i].ackno = (uint32_t) ackno; // TODO: should it be set to this?
   }
   p_sw->left = ackno - 1;
-  p_sw->right = p_sw->left + p_sw->w_size;
+  DEBUG("p_sw->left has been updated to %d", p_sw->left);
+  // p_sw->right should not be updated here (it is updated in sw_send_packet)
+
+  sw_send_window(p_rel);
 }
 
 void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
@@ -111,23 +124,63 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
   }
 }
 
-void sw_send_packet(const rel_t* p_rel, const packet_t* p_packet) {
-  sw_t* p_sw = p_rel->sw_sender;
-  check_sender_invariant(p_sw);
+void sw_store_packet(const rel_t* p_rel, const packet_t* p_packet) {
+  sw_t *p_sw = p_rel->sw_sender;
 
-  packet_t packet_with_new_seqno;
-  packet_with_new_seqno.seqno = (uint32_t) p_sw->next_seqno;
-  packet_with_new_seqno.ackno = p_packet->ackno;
-  packet_with_new_seqno.cksum = p_packet->cksum;
-  packet_with_new_seqno.len = p_packet->len;
-  memcpy(packet_with_new_seqno.data, p_packet->data, PAYLOAD_SIZE);
-  packet_t network_ready_packet;
-  set_network_bytes_and_checksum(&network_ready_packet, &packet_with_new_seqno);
+  packet_t *p_new_packet_in_sw = &(p_sw->sliding_window[p_sw->next_seqno]);
+  DEBUG("sw_store_packet: p_sw->next_seqno=%d", p_sw->next_seqno);
+  p_new_packet_in_sw->seqno = (uint32_t) p_sw->next_seqno;
+  p_new_packet_in_sw->ackno = p_packet->ackno;
+  p_new_packet_in_sw->cksum = p_packet->cksum;
+  p_new_packet_in_sw->len = p_packet->len;
+  memcpy(p_new_packet_in_sw->data, p_packet->data, PAYLOAD_SIZE);
+
+  DEBUG("Packet has been stored (len=%d seqno=%d)", p_new_packet_in_sw->len, p_new_packet_in_sw->seqno);
   p_sw->next_seqno += 1;
+}
 
-  print_pkt (&network_ready_packet, "sending", p_packet->len); // for debugging
-  conn_sendpkt(p_rel->c, &network_ready_packet, p_packet->len);
-  // Also, the sender associates a timer with each frame it transmits,
-  // and it retransmits the frame should the timer expire before an ACK is received.
-  // TODO
+/// This function sends all packets within the current window
+// (from left to left+w_size)
+/// that need to be sent.
+void sw_send_window(const rel_t* p_rel) {
+  sw_t *p_sw = p_rel->sw_sender;
+  int *is_slot_sent = p_rel->sw_sender->is_slot_sent;
+  int i;
+  DEBUG("sw_send_window: p_sw->left=%d", p_sw->left);
+  for (i = p_sw->left + 1; i <= p_sw->left + p_sw->w_size; ++i) {
+    packet_t *p_packet = &(p_sw->sliding_window[i]);
+    DEBUG("sw_send_window: i=%d is_slot_sent[i]=%d p_packet->seqno=%d", i, is_slot_sent[i], p_packet->seqno);
+    if (!is_slot_sent[i] && p_packet->seqno == i) {
+      // if the slot is initialized with a packet not yet sent
+      packet_t network_ready_packet;
+      set_network_bytes_and_checksum(&network_ready_packet, p_packet);
+      p_sw->slot_timestamps_ms[p_packet->seqno] = get_cur_time_ms();
+      DEBUG("Sending packet #%d", i);
+      print_pkt(&network_ready_packet, "sending", p_packet->len); // for debugging
+      conn_sendpkt(p_rel->c, &network_ready_packet, p_packet->len);
+      if (p_sw->right < SEQUENCE_SPACE_SIZE - 1) {
+        p_sw->right += 1;
+
+      } else {
+        p_sw->right = SEQUENCE_SPACE_SIZE - 1;
+      }
+      p_packet->ackno = UNACKED;
+      // p_sw->left should not be updated here (it is updated in sw_recv_ack)
+      is_slot_sent[i] = 1;
+    }
+  }
+  check_sender_invariant(p_sw);
+}
+
+int sw_should_sender_slot_resend(const rel_t* p_rel, int slot_idx) {
+  sw_t* p_sw = p_rel->sw_sender;
+  int timeout = p_rel->cc->timeout;
+  uint64_t cur_time_ms = get_cur_time_ms();
+  if (cur_time_ms - p_sw->slot_timestamps_ms[slot_idx] > timeout) {
+    packet_t* p_packet = &(p_sw->sliding_window[slot_idx]);
+    if (p_packet->ackno == UNACKED) {
+      return 1;
+    }
+  }
+  return 0;
 }
