@@ -59,6 +59,7 @@ void sw_recv_ack(const rel_t* p_rel, int ackno) {
     p_sw->sliding_window[i].ackno = (uint32_t) ackno; // TODO: should it be set to this?
   }
   p_sw->left = ackno - 1;
+  DEBUG("p_sw->left has been updated to %d", p_sw->left);
   // p_sw->right should not be updated here (it is updated in sw_send_packet)
 }
 
