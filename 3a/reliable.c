@@ -156,7 +156,8 @@ rel_read (rel_t *s)
     pkt.seqno = 0;
     pkt.len = (uint16_t) pkt_len;
 
-    sw_send_packet(s, &pkt);
+    sw_store_packet(s, &pkt);
+    sw_send_window(s);
   }
 }
 
@@ -239,4 +240,5 @@ void initialize_sender_sw_info(const struct config_common *cc, sw_t* sliding) {
   for (i = 0; i < SEQUENCE_SPACE_SIZE; ++i) {
     sliding->sliding_window[i].ackno = UNACKED;
   }
+  memset(sliding->is_slot_sent, 0, sizeof(int) * SEQUENCE_SPACE_SIZE);
 }

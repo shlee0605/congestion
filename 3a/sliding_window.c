@@ -11,7 +11,8 @@ uint64_t get_cur_time_ms();
 void send_ack_packet(const rel_t* r, uint32_t ackno);
 void sw_recv_ack(const rel_t* p_rel, int seq_to_ack);
 void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet);
-void sw_send_packet(const rel_t* p_rel, const packet_t* p_packet);
+void sw_send_window(const rel_t* p_rel);
+void sw_store_packet(const rel_t* p_rel, const packet_t* p_packet);
 int sw_should_sender_slot_resend(const rel_t* p_rel, int slot_idx);
 
 void check_receiver_invariant(const sw_t* p_sw) {
@@ -61,6 +62,8 @@ void sw_recv_ack(const rel_t* p_rel, int ackno) {
   p_sw->left = ackno - 1;
   DEBUG("p_sw->left has been updated to %d", p_sw->left);
   // p_sw->right should not be updated here (it is updated in sw_send_packet)
+
+  sw_send_window(p_rel);
 }
 
 void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
@@ -121,40 +124,48 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
   }
 }
 
-void sw_send_packet(const rel_t* p_rel, const packet_t* p_packet) {
-  sw_t* p_sw = p_rel->sw_sender;
-  DEBUG("Checking invariant before the sliding windows sends a packet out...");
-  DEBUG("left=%d right=%d w_size=%d", p_sw->left, p_sw->right, p_sw->w_size);
-  if ((p_sw->right + 1) - p_sw->left > p_sw->w_size) {
-    DEBUG("Sending the packet will cause an invariant violation, not sending.");
-    // Whenever a packet is sent out, p_sw->right will be incremented.
-    // If this will cause an invariant violation,
-    // do not send the packet.
-    return;
-  }
-  check_sender_invariant(p_sw);
+void sw_store_packet(const rel_t* p_rel, const packet_t* p_packet) {
+  sw_t *p_sw = p_rel->sw_sender;
 
-  packet_t* p_new_packet_in_sw = &(p_sw->sliding_window[p_sw->next_seqno]);
+  packet_t *p_new_packet_in_sw = &(p_sw->sliding_window[p_sw->next_seqno]);
   p_new_packet_in_sw->seqno = (uint32_t) p_sw->next_seqno;
   p_new_packet_in_sw->ackno = p_packet->ackno;
   p_new_packet_in_sw->cksum = p_packet->cksum;
   p_new_packet_in_sw->len = p_packet->len;
   memcpy(p_new_packet_in_sw->data, p_packet->data, PAYLOAD_SIZE);
-  packet_t network_ready_packet;
-  set_network_bytes_and_checksum(&network_ready_packet, p_new_packet_in_sw);
-  p_sw->next_seqno += 1;
+}
 
-  p_sw->slot_timestamps_ms[p_new_packet_in_sw->seqno] = get_cur_time_ms();
+/// This function sends all packets within the current window
+// (from left to left+w_size)
+/// that need to be sent.
+void sw_send_window(const rel_t* p_rel) {
+  sw_t *p_sw = p_rel->sw_sender;
+  int *is_slot_sent = p_rel->sw_sender->is_slot_sent;
+  int i;
+  for (i = p_sw->left + 1; i <= p_sw->left + p_sw->w_size; ++i) {
+    packet_t *p_packet = &(p_sw->sliding_window[i]);
+    DEBUG("sw_send_window: is_slot_sent[i]=%d p_packet->seqno=%d", is_slot_sent[i], p_packet->seqno);
+    if (!is_slot_sent[i] && p_packet->seqno == i) {
+      // if the slot is initialized with a packet not yet sent
+      packet_t network_ready_packet;
+      set_network_bytes_and_checksum(&network_ready_packet, p_packet);
+      p_sw->next_seqno += 1;
+      p_sw->slot_timestamps_ms[p_packet->seqno] = get_cur_time_ms();
+      DEBUG("Sending packet #%d", i);
+      print_pkt(&network_ready_packet, "sending", p_packet->len); // for debugging
+      conn_sendpkt(p_rel->c, &network_ready_packet, p_packet->len);
+      if (p_sw->right < SEQUENCE_SPACE_SIZE - 1) {
+        p_sw->right += 1;
 
-  print_pkt (&network_ready_packet, "sending", p_packet->len); // for debugging
-  conn_sendpkt(p_rel->c, &network_ready_packet, p_packet->len);
-  if (p_sw->right < SEQUENCE_SPACE_SIZE - 1) {
-    p_sw->right += 1;
-  } else {
-    p_sw->right = SEQUENCE_SPACE_SIZE - 1;
+      } else {
+        p_sw->right = SEQUENCE_SPACE_SIZE - 1;
+      }
+      p_packet->ackno = UNACKED;
+      // p_sw->left should not be updated here (it is updated in sw_recv_ack)
+      is_slot_sent[i] = 1;
+    }
   }
-  p_new_packet_in_sw->ackno = UNACKED;
-  // p_sw->left should not be updated here (it is updated in sw_recv_ack)
+  check_sender_invariant(p_sw);
 }
 
 int sw_should_sender_slot_resend(const rel_t* p_rel, int slot_idx) {

@@ -26,6 +26,7 @@
 struct sliding_window_info {
   packet_t sliding_window[SEQUENCE_SPACE_SIZE];
   uint64_t slot_timestamps_ms[SEQUENCE_SPACE_SIZE];
+  int is_slot_sent[SEQUENCE_SPACE_SIZE];
   int w_size;
   int left;
   int next_seqno;
@@ -37,7 +38,8 @@ typedef struct sliding_window_info sw_t;
 uint64_t get_cur_time_ms();
 void sw_recv_ack(const rel_t* p_rel, int seq_to_ack);
 void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet);
-void sw_send_packet(const rel_t* p_rel, const packet_t* p_packet);
+void sw_send_window(const rel_t* p_rel);
+void sw_store_packet(const rel_t* p_rel, const packet_t* p_packet);
 int sw_should_sender_slot_resend(const rel_t* p_rel, int slot_idx);
 
 #endif //_CONGESTION_SLIDING_WINDOW_H_
