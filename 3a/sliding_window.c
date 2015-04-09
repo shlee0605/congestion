@@ -2,13 +2,14 @@
 #include "reliable.h"
 #include <string.h>
 // stdio.h is used by DEBUG macros
+#include <stdbool.h>
 #include <stdio.h>
 #include <time.h>
 
 void check_receiver_invariant(const sw_t* p_sw);
 void check_sender_invariant(const sw_t* p_sw);
 uint64_t get_cur_time_ms();
-void send_ack_packet(const rel_t* r, uint32_t ackno);
+void send_ack_packet(const rel_t* r, uint32_t ackno, int is_eof_ack);
 void sw_recv_ack(const rel_t* p_rel, int seq_to_ack);
 void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet);
 void sw_send_window(const rel_t* p_rel);
@@ -33,16 +34,20 @@ uint64_t get_cur_time_ms() {
   return (clock() / CLOCKS_PER_SEC) * 1000;
 }
 
-void send_ack_packet(const rel_t* r, uint32_t ackno) {
+void send_ack_packet(const rel_t* r, uint32_t ackno, int is_eof_ack) {
   // If we send ACK packet with ackno=5,
   // that means we've successfully received 1~4 and we need 5 (TCP-style ACK).
 
   packet_t pkt;
   pkt.len = ACK_PACKET_SIZE;
-  pkt.ackno = ackno;
   pkt.cksum = 0;
-  pkt.seqno = 0;
-
+  pkt.ackno = 0;
+  if(is_eof_ack) {
+    pkt.ackno = ackno * SEQUENCE_SPACE_SIZE;
+    DEBUG("EOF_ACK Packet tagged = %d", pkt.ackno);
+  } else{
+    pkt.ackno = ackno;
+  }
   packet_t processed_pkt;
   set_network_bytes_and_checksum(&processed_pkt, &pkt);
 
@@ -104,7 +109,7 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
   if (p_packet->seqno == seq_num_to_ack) {
     // If the received packet *is* SeqNumToAck,
     // send an ACK for the highest received packet contiguous to SeqNumToAck.
-    int highest_acked_packet = seq_num_to_ack;
+    int highest_acked_packet = seq_num_to_ack + 1;
 
     while (highest_acked_packet < SEQUENCE_SPACE_SIZE &&
         p_sw->sliding_window[highest_acked_packet].ackno != UNACKED) {
@@ -113,7 +118,13 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
     highest_acked_packet -= 1;
     int next_ackno = highest_acked_packet + 1;
     p_sw->highest_acked_pkt = highest_acked_packet;
-    send_ack_packet(p_rel, (uint32_t) next_ackno);
+
+    DEBUG("sw_recv_packet: next_ackno: %d, highest_ack_pkt=%d", next_ackno, p_sw->highest_acked_pkt);
+    if(p_slot->len == EOF_PACKET_SIZE) {
+      send_ack_packet(p_rel, (uint32_t) next_ackno, true);
+    } else {
+      send_ack_packet(p_rel, (uint32_t) next_ackno, false);
+    }
     // It then updates LFR and LAF.
     p_sw->left = highest_acked_packet; // lfr
     if(p_sw->left + p_sw->w_size < SEQUENCE_SPACE_SIZE) {

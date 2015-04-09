@@ -8,6 +8,7 @@ void set_network_bytes_and_checksum(packet_t* dst, const packet_t* src);
 void set_host_bytes(packet_t* pkt);
 void initialize_receiver_sw_info(const struct config_common *cc, sw_t* sliding);
 void initialize_sender_sw_info(const struct config_common *cc, sw_t* sliding);
+int all_pkts_written(rel_t* r);
 struct reliable_state;
 rel_t *rel_list;
 
@@ -50,6 +51,9 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
   for(i = 0; i < SEQUENCE_SPACE_SIZE; i ++) {
     r->written[i] = 0;
   }
+  r->eof_ack_received = 0;
+  r->eof_received = 0;
+  r->last_pkt_num = 0;
   return r;
 }
 
@@ -92,10 +96,23 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
 
   if(original == new) {
     if (pkt->len == ACK_PACKET_SIZE) {
-      DEBUG("it is an ACK packet with ackno=%d", pkt->ackno);
-      sw_recv_ack(r, pkt->ackno);
+      DEBUG("it is an ACK packet with ackno=%d seqno=%d", pkt->ackno, pkt->seqno);
+      if(pkt->ackno > SEQUENCE_SPACE_SIZE) {
+        uint32_t decoded_ackno = pkt->ackno / SEQUENCE_SPACE_SIZE;
+        r->eof_ack_received = 1;
+        r->last_pkt_num = decoded_ackno - 2;
+        DEBUG("EOF's ACK received, ackno=%d", decoded_ackno);
+        sw_recv_ack(r, decoded_ackno);
+        rel_output(r);
+      } else {
+        sw_recv_ack(r, pkt->ackno);
+      }
     } else {
       DEBUG("it is a data packet");
+      if(pkt->len == EOF_PACKET_SIZE) {
+        DEBUG("EOF packet received!");
+        r->eof_received = 1;
+      }
       sw_recv_packet(r, pkt);
       rel_output(r);
     }
@@ -169,12 +186,29 @@ rel_output (rel_t *r)
   for(i = 1; i <= high; i++) {
     if(r->written[i] == 0) {
       packet_t* pkt = &(r->sw_receiver->sliding_window[i]);
-      conn_output(r->c, pkt->data, pkt->len - HEADER_SIZE);
-      r->written[i] = 1;
-      //the following lines are for debug purpose
-      packet_t pkt_to_print;
-      set_network_bytes_and_checksum(&pkt_to_print, pkt);
-      print_pkt(&pkt_to_print, "print to stdout", pkt->len);
+      // if(r->eof_ack_received == 1 && r->eof_received == 1 && r->file_eof == 1) {
+      //   DEBUG("eof ack received  / eof received");
+      //   if(all_pkts_written(r) == 1) {
+      //     conn_output(r->c, NULL, 0);
+      //     r->written[i];
+      //   }
+      // }
+      if(r->eof_ack_received == 1 && r->eof_received == 1) {
+        int pid = getpid ();
+        DEBUG("EOF_ACK_PKT, EOF_PKT received: %d", pid);
+        conn_output(r->c, NULL, 0);
+      }
+      else if(r->eof_ack_received == 1 || r->eof_received ==1) {
+        DEBUG("Only one of EOF and EOF ACK is received.");
+      }
+      else {
+        conn_output(r->c, pkt->data, pkt->len - HEADER_SIZE);
+        r->written[i] = 1;
+        //the following lines are for debug purpose
+        packet_t pkt_to_print;
+        set_network_bytes_and_checksum(&pkt_to_print, pkt);
+        print_pkt(&pkt_to_print, "print to stdout", pkt->len);
+      }
     }
   }
 }
@@ -205,9 +239,8 @@ void set_network_bytes_and_checksum(packet_t* dst, const packet_t* src) {
   int packet_length = (int) src->len;
   dst->len = htons(src->len);
   dst->ackno = htonl(src->ackno);
-  if(packet_length != ACK_PACKET_SIZE) {
-    dst->seqno = htonl(src->seqno);
-  }
+  dst->seqno = htonl(src->seqno);
+  DEBUG("set_network_bytes_and_checksum: ackno=%d, seqno=%d", ntohl(dst->ackno), ntohl(dst->seqno));
   memset(dst->data, 0, PAYLOAD_SIZE);
   memcpy(dst->data, src->data, PAYLOAD_SIZE);
   dst->cksum = 0;
@@ -241,4 +274,14 @@ void initialize_sender_sw_info(const struct config_common *cc, sw_t* sliding) {
     sliding->sliding_window[i].ackno = UNACKED;
   }
   memset(sliding->is_slot_sent, 0, sizeof(int) * SEQUENCE_SPACE_SIZE);
+}
+
+int all_pkts_written(rel_t* r) {
+  int i;
+  for(i = 0; i < r->last_pkt_num; i++) {
+    if(r->written[i] == 0) {
+      return 0;
+    }
+  }
+  return 1;
 }
