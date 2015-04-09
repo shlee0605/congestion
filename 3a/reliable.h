@@ -10,7 +10,11 @@
 #define HEADER_SIZE 12
 #define PAYLOAD_SIZE 500
 #define ACK_PACKET_SIZE 8
+#define EOF_PACKET_SIZE 12
 #define EOF_ACK_TAG 999
+#define TRUE 1
+#define FALSE 0
+
 struct reliable_state {
     rel_t *next;			/* Linked list for traversing all connections */
     rel_t **prev;

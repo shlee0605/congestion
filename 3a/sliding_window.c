@@ -39,12 +39,13 @@ void send_ack_packet(const rel_t* r, uint32_t ackno, int is_eof_ack) {
 
   packet_t pkt;
   pkt.len = ACK_PACKET_SIZE;
-  pkt.ackno = ackno;
   pkt.cksum = 0;
-  if(is_eof_ack == 1) {
-    pkt.seqno = EOF_ACK_TAG;
+  pkt.ackno = 0;
+  if(is_eof_ack) {
+    pkt.ackno = ackno * SEQUENCE_SPACE_SIZE;
+    DEBUG("EOF_ACK Packet tagged = %d", pkt.ackno);
   } else{
-    pkt.seqno = 0;
+    pkt.ackno = ackno;
   }
   packet_t processed_pkt;
   set_network_bytes_and_checksum(&processed_pkt, &pkt);
@@ -117,11 +118,12 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
     int next_ackno = highest_acked_packet + 1;
     p_sw->highest_acked_pkt = highest_acked_packet;
 
-    DEBUG("next_ackno: %d, highest_ack_pkt=%d", next_ackno, p_sw->highest_acked_pkt);
-    if(p_slot->len == 12) {
-      send_ack_packet(p_rel, (uint32_t) next_ackno, 1);
+    if(p_slot->len == EOF_PACKET_SIZE) {
+      DEBUG("EOF_ACK Packet Sending = next_ackno: %d, highest_ack_pkt=%d", next_ackno, p_sw->highest_acked_pkt);
+      send_ack_packet(p_rel, (uint32_t) next_ackno, TRUE);
     } else {
-      send_ack_packet(p_rel, (uint32_t) next_ackno, 0);
+      DEBUG("ACK Packet Sending = next_ackno: %d, highest_ack_pkt=%d", next_ackno, p_sw->highest_acked_pkt);
+      send_ack_packet(p_rel, (uint32_t) next_ackno, FALSE);
     }
     // It then updates LFR and LAF.
     p_sw->left = highest_acked_packet; // lfr
