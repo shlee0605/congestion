@@ -8,6 +8,7 @@ void set_network_bytes_and_checksum(packet_t* dst, const packet_t* src);
 void set_host_bytes(packet_t* pkt);
 void initialize_receiver_sw_info(const struct config_common *cc, sw_t* sliding);
 void initialize_sender_sw_info(const struct config_common *cc, sw_t* sliding);
+int all_pkts_written(rel_t* r);
 struct reliable_state;
 rel_t *rel_list;
 
@@ -52,6 +53,7 @@ rel_create (conn_t *c, const struct sockaddr_storage *ss,
   }
   r->eof_ack_received = 0;
   r->eof_received = 0;
+  r->last_pkt_num = 0;
   return r;
 }
 
@@ -96,12 +98,15 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
     if (pkt->len == ACK_PACKET_SIZE) {
       DEBUG("it is an ACK packet with ackno=%d", pkt->ackno);
       if(pkt->seqno == EOF_ACK_TAG) {
+        DEBUG("EOF's ack received ackno=%d", pkt->ackno);
         r->eof_ack_received = 1;
+        r->last_pkt_num = pkt->ackno - 2;
       }
       sw_recv_ack(r, pkt->ackno);
     } else {
       DEBUG("it is a data packet");
       if(pkt->len == 12) {
+        DEBUG("EOF packet received!");
         r->eof_received = 1;
       }
       sw_recv_packet(r, pkt);
@@ -177,9 +182,12 @@ rel_output (rel_t *r)
   for(i = 1; i <= high; i++) {
     if(r->written[i] == 0) {
       packet_t* pkt = &(r->sw_receiver->sliding_window[i]);
-      if(r->eof_ack_received == 1 && r->eof_received == 1) {
-        conn_output(r->c, NULL, 0);
-        r->written[i];
+      if(r->eof_ack_received == 1 && r->eof_received == 1 && r->file_eof == 1) {
+        DEBUG("eof ack received  / eof received");
+        if(all_pkts_written(r) == 1) {
+          conn_output(r->c, NULL, 0);
+          r->written[i];
+        }
       }
       conn_output(r->c, pkt->data, pkt->len - HEADER_SIZE);
       r->written[i] = 1;
@@ -253,4 +261,14 @@ void initialize_sender_sw_info(const struct config_common *cc, sw_t* sliding) {
     sliding->sliding_window[i].ackno = UNACKED;
   }
   memset(sliding->is_slot_sent, 0, sizeof(int) * SEQUENCE_SPACE_SIZE);
+}
+
+int all_pkts_written(rel_t* r) {
+  int i;
+  for(i = 0; i < r->last_pkt_num; i++) {
+    if(r->written[i] == 0) {
+      return 0;
+    }
+  }
+  return 1;
 }

@@ -25,6 +25,7 @@ struct reliable_state {
     int written[SEQUENCE_SPACE_SIZE];
     int eof_ack_received;
     int eof_received;
+    int last_pkt_num;
 };
 
 void rel_destroy (rel_t *r);
