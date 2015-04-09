@@ -1,4 +1,3 @@
-#include "rlib.h"
 #include "sliding_window.h"
 
 #ifdef NDEBUG

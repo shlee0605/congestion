@@ -1,3 +1,5 @@
+#include <sys/socket.h>
+#include "rlib.h"
 #include "reliable.h"
 #include <stdio.h>
 #include <string.h>
