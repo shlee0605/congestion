@@ -194,11 +194,12 @@ rel_output (rel_t *r)
       //   }
       // }
       if(r->eof_ack_received == 1 && r->eof_received == 1) {
-        DEBUG("EOF_ACK_PKT, EOF_PKT received");
-        //conn_output(r->c, NULL, 0);
+        int pid = getpid ();
+        DEBUG("EOF_ACK_PKT, EOF_PKT received: %d", pid);
+        conn_output(r->c, NULL, 0);
       }
       else if(r->eof_ack_received == 1 || r->eof_received ==1) {
-        //
+        DEBUG("Only one of EOF and EOF ACK is received.");
       }
       else {
         conn_output(r->c, pkt->data, pkt->len - HEADER_SIZE);
