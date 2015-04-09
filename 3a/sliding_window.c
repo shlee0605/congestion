@@ -120,9 +120,9 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
 
     DEBUG("sw_recv_packet: next_ackno: %d, highest_ack_pkt=%d", next_ackno, p_sw->highest_acked_pkt);
     if(p_slot->len == EOF_PACKET_SIZE) {
-      send_ack_packet(p_rel, (uint32_t) next_ackno, TRUE);
+      send_ack_packet(p_rel, (uint32_t) next_ackno, true);
     } else {
-      send_ack_packet(p_rel, (uint32_t) next_ackno, FALSE);
+      send_ack_packet(p_rel, (uint32_t) next_ackno, false);
     }
     // It then updates LFR and LAF.
     p_sw->left = highest_acked_packet; // lfr
