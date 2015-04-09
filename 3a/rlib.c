@@ -17,7 +17,6 @@
 #include <poll.h>
 #include <signal.h>
 
-#include "reliable.h"
 #include "rlib.h"
 
 char *progname;
@@ -131,18 +130,18 @@ print_pkt (const packet_t *buf, const char *op, int n)
     pid = getpid ();
   if (n < 0) {
     if (errno != EAGAIN)
-      DEBUG("%5d %s(%3d): %s\n", pid, op, n, strerror (errno));
+      fprintf (stderr, "%5d %s(%3d): %s\n", pid, op, n, strerror (errno));
   }
   else if (n == 8)
-    DEBUG("%5d %s(%3d): cksum = %04x, len = %04x, ack = %08x",
+    fprintf (stderr, "%5d %s(%3d): cksum = %04x, len = %04x, ack = %08x\n",
 	     pid, op, n, buf->cksum, ntohs (buf->len), ntohl (buf->ackno));
   else if (n >= 12)
-    DEBUG(
-	     "%5d %s(%3d): cksum = %04x, len = %04x, ack = %08x, seq = %08x",
+    fprintf (stderr,
+	     "%5d %s(%3d): cksum = %04x, len = %04x, ack = %08x, seq = %08x\n",
 	     pid, op, n, buf->cksum, ntohs (buf->len), ntohl (buf->ackno),
 	     ntohl (buf->seqno));
   else
-    DEBUG("%5d %s(%3d):", pid, op, n);
+    fprintf (stderr, "%5d %s(%3d):\n", pid, op, n);
   errno = saved_errno;
 }
 
@@ -484,9 +483,7 @@ need_timer_in (const struct timespec *last, long timer)
   long to;
   struct timespec ts;
 
-#if NEED_CLOCK_GETTIME
   clock_gettime (CLOCK_MONOTONIC, &ts);
-#endif
   to = ts.tv_sec - last->tv_sec;
   if (to > timer / 1000)
     return 0;
@@ -568,9 +565,7 @@ conn_poll (const struct config_common *cc)
 
   if (need_timer_in (&last_timeout, cc->timer) == 0) {
     rel_timer ();
-#if NEED_CLOCK_GETTIME
     clock_gettime (CLOCK_MONOTONIC, &last_timeout);
-#endif
   }
 
   for (c = conn_list; c; c = nc) {

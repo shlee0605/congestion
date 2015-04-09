@@ -1,12 +1,9 @@
-#ifndef __RLIB_H
-#define __RLIB_H
 #if DMALLOC
 #include <dmalloc.h>
 #endif /* DMALLOC */
 
 #include <stdint.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 
 /* -----------------------------------------------------------------------
 
@@ -298,11 +295,7 @@ int connect_to (int dgram, const struct sockaddr_storage *ss);
 #include <sys/time.h>
 
 #ifndef CLOCK_REALTIME
-#ifdef __linux__
 # define NEED_CLOCK_GETTIME 1
-#else
-# define NEED_CLOCK_GETTIME 0
-#endif
 # define CLOCK_REALTIME 0
 # undef CLOCK_MONOTONIC
 # define CLOCK_MONOTONIC 1
@@ -311,5 +304,3 @@ int connect_to (int dgram, const struct sockaddr_storage *ss);
 #if NEED_CLOCK_GETTIME
 int clock_gettime (int, struct timespec *);
 #endif /* NEED_CLOCK_GETTIME */
-
-#endif /* __RLIB_H */
