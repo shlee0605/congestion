@@ -2,6 +2,7 @@
 #include "reliable.h"
 #include <string.h>
 // stdio.h is used by DEBUG macros
+#include <stdbool.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -41,7 +42,7 @@ void send_ack_packet(const rel_t* r, uint32_t ackno, int is_eof_ack) {
   pkt.len = ACK_PACKET_SIZE;
   pkt.ackno = ackno;
   pkt.cksum = 0;
-  if(is_eof_ack == 1) {
+  if(is_eof_ack) {
     pkt.seqno = EOF_ACK_TAG;
   } else{
     pkt.seqno = 0;
@@ -117,11 +118,11 @@ void sw_recv_packet(const rel_t* p_rel, const packet_t* p_packet) {
     int next_ackno = highest_acked_packet + 1;
     p_sw->highest_acked_pkt = highest_acked_packet;
 
-    DEBUG("next_ackno: %d, highest_ack_pkt=%d", next_ackno, p_sw->highest_acked_pkt);
-    if(p_slot->len == 12) {
-      send_ack_packet(p_rel, (uint32_t) next_ackno, 1);
+    DEBUG("sw_recv_packet: next_ackno: %d, highest_ack_pkt=%d", next_ackno, p_sw->highest_acked_pkt);
+    if(p_slot->len == EOF_PACKET_SIZE) {
+      send_ack_packet(p_rel, (uint32_t) next_ackno, TRUE);
     } else {
-      send_ack_packet(p_rel, (uint32_t) next_ackno, 0);
+      send_ack_packet(p_rel, (uint32_t) next_ackno, FALSE);
     }
     // It then updates LFR and LAF.
     p_sw->left = highest_acked_packet; // lfr

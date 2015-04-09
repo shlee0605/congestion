@@ -8,6 +8,7 @@
 #endif
 
 #define HEADER_SIZE 12
+#define EOF_PACKET_SIZE HEADER_SIZE
 #define PAYLOAD_SIZE 500
 #define ACK_PACKET_SIZE 8
 #define EOF_ACK_TAG 999

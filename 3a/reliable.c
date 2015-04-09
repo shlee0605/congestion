@@ -105,7 +105,7 @@ rel_recvpkt (rel_t *r, packet_t *pkt, size_t n)
       sw_recv_ack(r, pkt->ackno);
     } else {
       DEBUG("it is a data packet");
-      if(pkt->len == 12) {
+      if(pkt->len == EOF_PACKET_SIZE) {
         DEBUG("EOF packet received!");
         r->eof_received = 1;
       }
