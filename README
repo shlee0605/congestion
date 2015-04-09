@@ -1,13 +1,87 @@
+CS356 Project 3: Congestion Control README
 Seunghyun Lee(sl169), Alex Song(ss456), Youngjik Yang(yy69), Jangsoon Park(jp148)
 
 Part A
-We managed to pass all tests.
+We worked on this project with Ubuntu 12.04 and using the gcc version 4.8.1. Under this environment, 
+we managed to pass all of the given tests. However, after seeing the piazza post about the gcc version,
+we tried running our code on various versions of gcc. Under v4.6, our code passed 10 tests, and under 
+v4.8.2 (with Ubuntu 14.04), our code passed 11 tests. This shows that c code is very sensitive to the
+envionment in which it is compiled/run. However, we did not have the time to account for the different
+versions of gcc (also, it should be beyond the scope of the course). We have attached the output of
+compiling and running the tests under our environment below. 
 
 
+alexsong93@alexUbuntu:~/CS356/congestion$ cd 3a
+alexsong93@alexUbuntu:~/CS356/congestion/3a$ make clean
+rm -f -- ./.clean~ ./sliding_window.o ./rlib.o ./reliable.o
+rm -f uc reliable reliable.tar.gz
+alexsong93@alexUbuntu:~/CS356/congestion/3a$ make
+gcc -g -Wall  -DNDEBUG -c reliable.c
+reliable.c: In function ‘set_network_bytes_and_checksum’:
+reliable.c:206:3: warning: implicit declaration of function ‘htons’ [-Wimplicit-function-declaration]
+   dst->len = htons(src->len);
+   ^
+reliable.c:207:3: warning: implicit declaration of function ‘htonl’ [-Wimplicit-function-declaration]
+   dst->ackno = htonl(src->ackno);
+   ^
+reliable.c: In function ‘set_host_bytes’:
+reliable.c:218:3: warning: implicit declaration of function ‘ntohs’ [-Wimplicit-function-declaration]
+   pkt->len = ntohs(pkt->len);
+   ^
+reliable.c:219:3: warning: implicit declaration of function ‘ntohl’ [-Wimplicit-function-declaration]
+   pkt->ackno = ntohl(pkt->ackno);
+   ^
+gcc -g -Wall  -DNDEBUG -c rlib.c
+rlib.c: In function ‘conn_poll’:
+rlib.c:503:7: warning: variable ‘n’ set but not used [-Wunused-but-set-variable]
+   int n, i;
+       ^
+gcc -g -Wall  -DNDEBUG -c sliding_window.c
+sliding_window.c: In function ‘check_receiver_invariant’:
+sliding_window.c:21:7: warning: unused variable ‘window_size’ [-Wunused-variable]
+   int window_size = p_sw->w_size;
+       ^
+sliding_window.c:20:7: warning: unused variable ‘lfr_idx’ [-Wunused-variable]
+   int lfr_idx = p_sw->left;
+       ^
+sliding_window.c:19:7: warning: unused variable ‘laf_idx’ [-Wunused-variable]
+   int laf_idx = p_sw->right;
+       ^
+sliding_window.c: In function ‘check_sender_invariant’:
+sliding_window.c:28:7: warning: unused variable ‘window_size’ [-Wunused-variable]
+   int window_size = p_sw->w_size;
+       ^
+sliding_window.c:27:7: warning: unused variable ‘lar_idx’ [-Wunused-variable]
+   int lar_idx = p_sw->left;
+       ^
+sliding_window.c:26:7: warning: unused variable ‘lfs_idx’ [-Wunused-variable]
+   int lfs_idx = p_sw->right;
+       ^
+gcc -g -Wall  -DNDEBUG -std=c99 -o reliable reliable.o rlib.o sliding_window.o  -lrt
+alexsong93@alexUbuntu:~/CS356/congestion/3a$ make
+make: Nothing to be done for `all'.
+alexsong93@alexUbuntu:~/CS356/congestion/3a$ clear
+
+alexsong93@alexUbuntu:~/CS356/congestion/3a$ cd ..
+alexsong93@alexUbuntu:~/CS356/congestion$ ./tester -w 10 3a/reliable -w 10 -t 300
+TEST  1:  Bi-directionally transfer data...                           passed
+TEST  2:  Ping-pong short messages back and forth...                  passed
+TEST  3:  Ping-pong with test for excessive retransmissions...        passed
+TEST  4:  Receiving data from reference implementation...             passed
+TEST  5:  Flow control when application doesn't read output...        passed
+TEST  6:  Sending data to reference implementation...                 passed
+TEST  7:  Bi-directionally interoperating with reference...           passed
+TEST  8:  Test for proper end-of-file handling...                     passed
+TEST  9:  Two-way transfer injecting 5% garbage packets...            passed
+TEST 10:  Receiving from reference with 2% reordering...              passed
+TEST 11:  Two-way transfer with 5% packet duplication...              passed
+TEST 12:  Two-way transfer with 2% of packets having bad length...    passed
+TEST 13:  One-way transfer with 2% packet loss...                     passed
+TEST 14:  Two-way transfer with 2% packet corruption...               passed
+SUMMARY: passed 14/14
 
 
 Part B
 We did not enough have time to work on part b.
 
-Github Repo:
-https://github.com/shlee0605/congestion  
+
